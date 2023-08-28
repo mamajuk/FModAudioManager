@@ -334,7 +334,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _StudioSettingsPath = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
         private const string _GroupFolderPath    = "Metadata/Group";
         private const string _ScriptDefine       = "FMOD_Event_ENUM";
-        private const string _EditorVersion      = "v1.230817";
+        private const string _EditorVersion      = "v1.230828";
 
         private const string _EventRootPath      = "event:/";
         private const string _BusRootPath        = "bus:/";
