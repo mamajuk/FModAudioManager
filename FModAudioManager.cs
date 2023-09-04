@@ -64,7 +64,7 @@ public struct FModEventInstance
             Ins.getDescription(out desc);
 
             bool isOneShot;
-            desc.isSnapshot(out isOneShot);
+            desc.isOneshot(out isOneShot);
             return isOneShot;
         }
     }
@@ -117,8 +117,7 @@ public struct FModEventInstance
         set {
 
             if (value == null) FMODUnity.RuntimeManager.DetachInstanceFromGameObject(Ins);
-            else FMODUnity.RuntimeManager.AttachInstanceToGameObject(Ins, value.transform); 
-        
+            else FMODUnity.RuntimeManager.AttachInstanceToGameObject(Ins, value.transform);
             _AttachedGameObject = value;
         }
     }
@@ -180,6 +179,78 @@ public struct FModEventInstance
 
             float ratio = Mathf.Clamp(value, 0.0f, 1.0f);
             Ins.setTimelinePosition( Mathf.RoundToInt(length*ratio) );
+        }
+    }
+    public int          Length
+    {
+        get
+        {
+            FMOD.Studio.EventDescription desc;
+            Ins.getDescription(out desc);
+
+            int length;
+            desc.getLength(out length);
+            return length;
+        }
+    }
+    public float        Min3DDistance
+    {
+        get
+        {
+            bool is3D;
+            FMOD.Studio.EventDescription desc;
+            Ins.getDescription(out desc);
+            desc.is3D(out is3D);
+            if (is3D)
+            {
+                float distance;
+                Ins.getProperty(FMOD.Studio.EVENT_PROPERTY.MINIMUM_DISTANCE, out distance);
+                return distance;
+            }
+
+            return 0f;
+        }
+
+        set
+        {
+            bool is3D;
+            FMOD.Studio.EventDescription desc;
+            Ins.getDescription(out desc);
+            desc.is3D(out is3D);
+            if (is3D)
+            {
+                Ins.setProperty(FMOD.Studio.EVENT_PROPERTY.MINIMUM_DISTANCE, value);
+            }
+        }
+    }
+    public float        Max3DDistance
+    {
+        get
+        {
+            bool is3D;
+            FMOD.Studio.EventDescription desc;
+            Ins.getDescription(out desc);
+            desc.is3D(out is3D);
+            if (is3D)
+            {
+                float distance;
+                Ins.getProperty(FMOD.Studio.EVENT_PROPERTY.MAXIMUM_DISTANCE, out distance);
+                return distance;
+            }
+
+            return 0f;
+        }
+
+        set
+        {
+            bool is3D;
+            FMOD.Studio.EventDescription desc;
+            Ins.getDescription(out desc);
+            desc.is3D(out is3D);
+            if (is3D)
+            {
+                Ins.setProperty(FMOD.Studio.EVENT_PROPERTY.MAXIMUM_DISTANCE, value);
+            }
         }
     }
 
@@ -334,7 +405,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _StudioSettingsPath = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
         private const string _GroupFolderPath    = "Metadata/Group";
         private const string _ScriptDefine       = "FMOD_Event_ENUM";
-        private const string _EditorVersion      = "v1.230828";
+        private const string _EditorVersion      = "v1.230904";
 
         private const string _EventRootPath      = "event:/";
         private const string _BusRootPath        = "bus:/";
@@ -1196,6 +1267,7 @@ public sealed class FModAudioManager : MonoBehaviour
              *****/
             builder.AppendLine("public enum FModBusType");
             builder.AppendLine("{");
+            builder.AppendLine("    Master=0,");
 
             List<NPData> busLists = _EditorSettings.BusList;
             int Count = busLists.Count;
@@ -1203,7 +1275,7 @@ public sealed class FModAudioManager : MonoBehaviour
             {
                 string busName  = RemoveInValidChar(busLists[i].Name);
                 string comma    = (i == Count - 1 ? "" : ",");
-                builder.AppendLine($"   {busName}={i}{comma}");
+                builder.AppendLine($"   {busName}={i+1}{comma}");
             }
 
             builder.AppendLine("}");
@@ -1486,6 +1558,8 @@ public sealed class FModAudioManager : MonoBehaviour
             #region Omit
             List<NPData> list = _EditorSettings.BusList;
             int Count = list.Count;
+
+            builder.AppendLine($"        \"{_BusRootPath}\"{ (Count==0?"":",") }");
             for (int i = 0; i < Count; i++)
             {
                 string comma = (i == Count - 1 ? "" : ",");
@@ -1935,9 +2009,9 @@ public sealed class FModAudioManager : MonoBehaviour
     //=======================================
     /////            Property           /////
     ///======================================
-    public static bool  AutoFadeInOutBGM    { get; set; } = false;
-    public static float AutoFadeBGMDuration { get; set; } = 3f;
-    public const  int   AutoFadeBGMID = -9324;
+    public static bool  UsedBGMAutoFade     { get; set; } = false;
+    public static float BGMAutoFadeDuration { get; set; } = 3f;
+    public const  int   BGMAutoFadeID = -9324;
     public static FModEventFadeCompleteNotify OnEventFadeComplete;
 
 
@@ -2055,15 +2129,33 @@ public sealed class FModAudioManager : MonoBehaviour
         if (_Instance == null) return;
 
         string bankName = FModReferenceList.Banks[(int)bankType];
-        FMODUnity.RuntimeManager.LoadBank(bankName);
+        try
+        {
+            FMODUnity.RuntimeManager.LoadBank(bankName);
+        }
+        catch 
+        {
+            #if UNITY_EDITOR
+            UnityEngine.Debug.LogWarning("failed FModAudioManager.LoadBank(...)!!");
+            #endif
+        }
     }
 
     public static void UnloadBank(FModBankType bankType)
     {
         if (_Instance == null) return;
 
-        string bankName = FModReferenceList.Banks[(int)bankType];
-        FMODUnity.RuntimeManager.UnloadBank(bankName);
+        try
+        {
+            string bankName = FModReferenceList.Banks[(int)bankType];
+            FMODUnity.RuntimeManager.UnloadBank(bankName);
+        }
+        catch
+        {
+            #if UNITY_EDITOR
+            UnityEngine.Debug.LogWarning("failed FModAudioManager.UnLoadBank(...)!!");
+            #endif
+        }
     }
 
     public static bool BankIsLoaded(FModBankType bankType)
@@ -2108,7 +2200,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 continue;
             }
 
-            FMODUnity.RuntimeManager.UnloadBank(bankLists[i]);
+            try { FMODUnity.RuntimeManager.UnloadBank(bankLists[i]); } catch { continue; }
         }
     }
 
@@ -2120,10 +2212,13 @@ public sealed class FModAudioManager : MonoBehaviour
     {
         if(_Instance== null) return new FModEventInstance();
 
-        FMOD.GUID guid = FModReferenceList.Events[(int)eventType];
-        FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid), position);
-
-        return newInstance;
+        try
+        {
+            FMOD.GUID guid = FModReferenceList.Events[(int)eventType];
+            FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid), position);
+            return newInstance;
+        }
+        catch { return new FModEventInstance(); }
     }
 
     public static FModEventInstance CreateInstance(FModSFXEventType eventType, Vector3 position=default)
@@ -2153,155 +2248,174 @@ public sealed class FModAudioManager : MonoBehaviour
     /*********************************************
      *  PlayOneShot Methods
      * ***/
-    private static void PlayOneShotSFX(FModSFXEventType eventType, Vector3 position, float volume, float startTimelinePositionRatio, bool isGlobal, int paramType, float paramValue, float minDistance, float maxDistance)
+    private static void PlayOneShotSFX(FModSFXEventType eventType, Vector3 position, float volume, int startTimelinePosition, bool isGlobal, int paramType, float paramValue, float minDistance, float maxDistance)
     {
         #region Omit
         if (_Instance == null) return;
 
-        FMOD.GUID guid = FModReferenceList.Events[(int)eventType];
-        bool volumeIsChanged = ( volume>=0f );
-        bool stPosIsChanged  = ( startTimelinePositionRatio>=0f );
-        bool paramIsChanged  = ( paramType!=-1);
-
-        FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid));
-        newInstance.Set3DDistance(minDistance, maxDistance);
-        newInstance.Position = position;
-        if(stPosIsChanged) newInstance.TimelinePositionRatio = startTimelinePositionRatio;
-        if(volumeIsChanged) newInstance.Volume = volume;  
-        if(paramIsChanged)
+        try
         {
-            if (isGlobal) newInstance.SetParameter((FModGlobalParamType)paramType, paramValue);
-            else newInstance.SetParameter((FModLocalParamType)paramType, paramValue);
+            FMOD.GUID guid = FModReferenceList.Events[(int)eventType];
+            bool volumeIsChanged = (volume >= 0f);
+            bool stPosIsChanged = (startTimelinePosition >= 0);
+            bool paramIsChanged = (paramType != -1);
+
+            FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid));
+            newInstance.Set3DDistance(minDistance, maxDistance);
+            newInstance.Position = position;
+            if (stPosIsChanged) newInstance.TimelinePositionRatio = startTimelinePosition;
+            if (volumeIsChanged) newInstance.Volume = volume;
+            if (paramIsChanged)
+            {
+                if (isGlobal) newInstance.SetParameter((FModGlobalParamType)paramType, paramValue);
+                else newInstance.SetParameter((FModLocalParamType)paramType, paramValue);
+            }
+            newInstance.Play();
+            newInstance.Destroy(true);
         }
-        newInstance.Play();
-        newInstance.Destroy(true);
+        catch 
+        {
+            #if UNITY_EDITOR
+            UnityEngine.Debug.LogWarning("failed FModAudioManager.PlayOneShotSFX(...)!!");
+            #endif
+        }
         #endregion
     }
 
-    public static void PlayOneShotSFX(FModSFXEventType eventType, Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f, float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModSFXEventType eventType, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX(eventType, position, volume, startTimelinePositionRatio, true, -1, 0, minDistance, maxDistance);
+        PlayOneShotSFX(eventType, position, volume, startTimelinePosition, true, -1, 0, minDistance, maxDistance);
     }
 
-    public static void PlayOneShotSFX(FModSFXEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f, float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModSFXEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX(eventType, position, volume, startTimelinePositionRatio, true, (int)paramType, paramValue, minDistance, maxDistance);
+        PlayOneShotSFX(eventType, position, volume, startTimelinePosition, true, (int)paramType, paramValue, minDistance, maxDistance);
     }
 
-    public static void PlayOneShotSFX(FModSFXEventType eventType, FModLocalParamType paramType, float paramValue = 0f, Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f, float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModSFXEventType eventType, FModLocalParamType paramType, float paramValue = 0f, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX(eventType, position, volume, startTimelinePositionRatio, false, (int)paramType, paramValue, minDistance, maxDistance);
+        PlayOneShotSFX(eventType, position, volume, startTimelinePosition, false, (int)paramType, paramValue, minDistance, maxDistance);
     }
 
-    public static void PlayOneShotSFX(FModNoGroupEventType eventType, Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f,  float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModNoGroupEventType eventType, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1,  float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePositionRatio, true, -1, 0, minDistance, maxDistance);
+        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePosition, true, -1, 0, minDistance, maxDistance);
     }
 
-    public static void PlayOneShotSFX(FModNoGroupEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f, float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModNoGroupEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePositionRatio, true, (int)paramType, paramValue, minDistance, maxDistance);
+        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePosition, true, (int)paramType, paramValue, minDistance, maxDistance);
     }
 
-    public static void PlayOneShotSFX(FModNoGroupEventType eventType, FModLocalParamType paramType, float paramValue = 0f, Vector3 position = default, float volume = -1f, float startTimelinePositionRatio = -1f, float minDistance = 1f, float maxDistance = 20f)
+    public static void PlayOneShotSFX(FModNoGroupEventType eventType, FModLocalParamType paramType, float paramValue = 0f, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
     {
-        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePositionRatio, false, (int)paramType, paramValue, minDistance, maxDistance);
+        PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePosition, false, (int)paramType, paramValue, minDistance, maxDistance);
     }
 
     /*********************************************
      *   BGM Methods
      * ***/
-    private static void PlayBGM(FModBGMEventType eventType, float volume, int startTimelinePositionRatio, bool isGlobal, int paramType, float paramValue, Vector3 position)
+    private static void PlayBGM(FModBGMEventType eventType, float volume, int startTimelinePosition, bool isGlobal, int paramType, float paramValue, Vector3 position)
     {
         #region Omit
         if (_Instance == null) return;
 
-        bool volumeIsChanged = (volume >= 0f);
-        bool stPosIsChanged = (startTimelinePositionRatio >= 0f);
-        bool paramIsChanged = (paramType!=-1);
-
-        //기존에 BGM 인스턴스가 존재할 경우
-        if(_Instance._BGMIns.IsValid)
+        try
         {
-            if (AutoFadeInOutBGM){
+            bool volumeIsChanged = (volume >= 0f);
+            bool stPosIsChanged = (startTimelinePosition >= 0f);
+            bool paramIsChanged = (paramType != -1);
 
-                _Instance._NextBGMEvent = (int)eventType;
-                _Instance._NextBGMVolume = volume;
-                _Instance._NextBGMStartPos = startTimelinePositionRatio;
-                _Instance._NextBGMParam = (int)paramType;
-                _Instance._NextBGMParamValue = paramValue;
-                _Instance._NextBGMPosition = position;
+            //기존에 BGM 인스턴스가 존재할 경우
+            if (_Instance._BGMIns.IsValid)
+            {
+                if (UsedBGMAutoFade)
+                {
 
-                StopFade(AutoFadeBGMID);
-                ApplyBGMFade(0f, AutoFadeBGMDuration * .5f, AutoFadeBGMID, true);
-                return;
+                    _Instance._NextBGMEvent = (int)eventType;
+                    _Instance._NextBGMVolume = volume;
+                    _Instance._NextBGMStartPos = startTimelinePosition;
+                    _Instance._NextBGMParam = (int)paramType;
+                    _Instance._NextBGMParamValue = paramValue;
+                    _Instance._NextBGMPosition = position;
+
+                    StopFade(BGMAutoFadeID);
+                    ApplyBGMFade(0f, BGMAutoFadeDuration * .5f, BGMAutoFadeID, true);
+                    return;
+                }
+                else _Instance._BGMIns.Destroy();
             }
-            else _Instance._BGMIns.Destroy();
-        }
 
-        _Instance._BGMIns = CreateInstance(eventType, position);
-        _Instance._BGMIns.Position = position;
-        if (stPosIsChanged) _Instance._BGMIns.TimelinePositionRatio = startTimelinePositionRatio;
-        if (paramIsChanged)
+            _Instance._BGMIns = CreateInstance(eventType, position);
+            _Instance._BGMIns.Position = position;
+            if (stPosIsChanged) _Instance._BGMIns.TimelinePosition = startTimelinePosition;
+            if (paramIsChanged)
+            {
+                if (isGlobal) _Instance._BGMIns.SetParameter((FModGlobalParamType)paramType, paramValue);
+                else _Instance._BGMIns.SetParameter((FModLocalParamType)paramType, paramValue);
+            }
+
+            //페이드를 적용하면서 시작할 경우
+            if (UsedBGMAutoFade)
+            {
+                float newVolume = (volumeIsChanged ? volume : _Instance._BGMIns.Volume);
+                _Instance._NextBGMEvent = -1;
+                _Instance._BGMIns.Volume = 0f;
+                ApplyBGMFade(newVolume, BGMAutoFadeDuration, BGMAutoFadeID);
+            }
+            else if (volumeIsChanged) _Instance._BGMIns.Volume = volume;
+
+            _Instance._BGMIns.Play();
+        }
+        catch
         {
-            if (isGlobal) _Instance._BGMIns.SetParameter((FModGlobalParamType)paramType, paramValue);
-            else _Instance._BGMIns.SetParameter((FModLocalParamType)paramType, paramValue);
+           #if UNITY_EDITOR
+           UnityEngine.Debug.LogWarning("failed FModAudioManager.PlayBGM(...)!!");
+           #endif
         }
-
-        //페이드를 적용하면서 시작할 경우
-        if (AutoFadeInOutBGM)
-        {
-            float newVolume = (volumeIsChanged ? volume : _Instance._BGMIns.Volume);
-            _Instance._NextBGMEvent = -1;
-            _Instance._BGMIns.Volume = 0f;
-            ApplyBGMFade(newVolume, AutoFadeBGMDuration, AutoFadeBGMID);
-        }
-        else if (volumeIsChanged) _Instance._BGMIns.Volume = volume;
-
-        _Instance._BGMIns.Play();
         #endregion
     }
 
-    public static void PlayBGM(FModBGMEventType eventType, float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModBGMEventType eventType, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM(eventType, volume, startTimelinePositionRatio, false, -1, 0, position);
+        PlayBGM(eventType, volume, startTimelinePosition, false, -1, 0, position);
     }
 
-    public static void PlayBGM(FModBGMEventType eventType, FModLocalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModBGMEventType eventType, FModLocalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM(eventType, volume, startTimelinePositionRatio, false,  (int)paramType, paramValue, position);
+        PlayBGM(eventType, volume, startTimelinePosition, false,  (int)paramType, paramValue, position);
     }
 
-    public static void PlayBGM(FModBGMEventType eventType, FModGlobalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModBGMEventType eventType, FModGlobalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM(eventType, volume, startTimelinePositionRatio, true, (int)paramType, paramValue, position);
+        PlayBGM(eventType, volume, startTimelinePosition, true, (int)paramType, paramValue, position);
     }
 
-    public static void PlayBGM(FModNoGroupEventType eventType, float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModNoGroupEventType eventType, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePositionRatio, false, -1, 0, position);
+        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePosition, false, -1, 0, position);
     }
 
-    public static void PlayBGM(FModNoGroupEventType eventType, FModLocalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModNoGroupEventType eventType, FModLocalParamType paramType, float paramValue = 0f, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePositionRatio, false, (int)paramType, paramValue, position);
+        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePosition, false, (int)paramType, paramValue, position);
     }
 
-    public static void PlayBGM(FModNoGroupEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,float volume = -1f, int startTimelinePositionRatio = -1, Vector3 position = default)
+    public static void PlayBGM(FModNoGroupEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
-        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePositionRatio, true, (int)paramType, paramValue, position);
+        PlayBGM((FModBGMEventType)eventType, volume, startTimelinePosition, true, (int)paramType, paramValue, position);
     }
 
     public static void StopBGM()
     {
         if (_Instance == null || _Instance._BGMIns.IsValid == false) return;
 
-        if(AutoFadeInOutBGM)
+        if(UsedBGMAutoFade)
         {
             _Instance._NextBGMEvent = -1;
 
-            StopFade(AutoFadeBGMID);
-            ApplyBGMFade(0f, AutoFadeBGMDuration, AutoFadeBGMID, true);
+            StopFade(BGMAutoFadeID);
+            ApplyBGMFade(0f, BGMAutoFadeDuration, BGMAutoFadeID, true);
             return;
         }
 
@@ -2593,7 +2707,7 @@ public sealed class FModAudioManager : MonoBehaviour
 
     private void BGMFadeComplete(int fadeID, float goalVolume)
     {
-        if (fadeID != AutoFadeBGMID ) return;
+        if (fadeID != BGMAutoFadeID ) return;
         if (goalVolume <= 0f) _BGMIns.Destroy();
         if(_NextBGMEvent >=0) PlayBGM((FModBGMEventType)_NextBGMEvent, (FModLocalParamType)_NextBGMParam, _NextBGMParamValue, _NextBGMVolume, _NextBGMStartPos, _NextBGMPosition);
     }
