@@ -14,7 +14,6 @@ using System.Runtime.InteropServices;
 using UnityEngine.Rendering;
 using UnityEngine.Events;
 using System.Xml;
-using System.Diagnostics.Tracing;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -25,8 +24,361 @@ using static UnityEditor.PlayerSettings;
 using static UnityEditor.ObjectChangeEventStream;
 #endif
 
-#region Define_FModEventInstance
+#region Define
 #if FMOD_Event_ENUM
+
+[System.Serializable]
+public struct FModParameterReference
+{
+    #region Editor_Extension
+#if UNITY_EDITOR
+    [CanEditMultipleObjects]
+    [CustomPropertyDrawer(typeof(FModParameterReference))]
+    private sealed class FModParameterInstanceDrawer : PropertyDrawer
+    {
+        //=====================================
+        /////           Fields            /////
+        //=====================================
+        private SerializedProperty ParamTypeProperty;
+        private SerializedProperty ParamValueProperty;
+        private SerializedProperty isGlobalProperty;
+        private SerializedProperty isInitProperty;
+
+
+        /**에디터 데이터 관련...*/
+        private const string                   _EditorSettingsPath = "Assets/Plugins/FMOD/Resources/FModAudioEditorSettings.asset";
+        private static FModAudioEditorSettings _EditorSettings;
+
+        /**스타일 관련...*/
+        private static GUIStyle _labelStyle;
+        private static GUIStyle _labelStyleLight;
+
+        /**파라미터 값 관련...*/
+        private float    _min, _max;
+        private int      _select = -1;
+        private string[] _labels;
+        private bool     _startApply = false;
+
+
+        //===============================================
+        //////          Override methods            /////
+        //===============================================
+
+        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        {
+            /**초기화에 실패했다면, 원래 방식대로 출력한다.*/
+            if (GUI_Initialized(property)==false) return;
+
+            position.height = GetBaseHeight()- 70f;
+
+            /**모든 프로퍼티들을 표시한다...*/
+            GUI_ShowPropertyRect(ref position, property);
+
+            GUI_ShowParamType(ref position);
+
+            GUI_ShowParamValue(ref position);
+        }
+
+        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        {
+            return GetBaseHeight();
+        }
+
+
+
+        //======================================
+        /////         GUI methods          /////
+        //======================================
+        private bool GUI_Initialized(SerializedProperty property)
+        {
+            #region Omit
+            /******************************************
+             *   모든 프로퍼티들을 초기화한다...
+             * ***/
+            ParamTypeProperty   = property.FindPropertyRelative("_paramType");
+            ParamValueProperty  = property.FindPropertyRelative("_paramValue");
+            isGlobalProperty    = property.FindPropertyRelative("_isGlobal");
+            isInitProperty      = property.FindPropertyRelative("_init");
+
+            /**에디터 세팅 초기화...*/
+            if (_EditorSettings == null){
+
+                _EditorSettings = AssetDatabase.LoadAssetAtPath<FModAudioEditorSettings>(_EditorSettingsPath);
+            }
+
+            /**스타일 초기화...*/
+            if(_labelStyle==null){
+
+                _labelStyle = new GUIStyle(EditorStyles.boldLabel);
+                _labelStyle.normal.textColor = Color.white;
+                _labelStyle.fontSize = 12;
+            }
+
+            if (_labelStyleLight == null){
+
+                _labelStyleLight = new GUIStyle(EditorStyles.boldLabel);
+                _labelStyleLight.normal.textColor = Color.black;
+                _labelStyleLight.fontSize = 12;
+            }
+
+            bool result = (_EditorSettings != null && ParamTypeProperty != null && ParamValueProperty != null && isGlobalProperty != null);
+
+            /**현재 적용된 파라미터의 값을 갱신한다...*/
+            if (result && isInitProperty.boolValue==false)
+            {
+                ParamTypeProperty.intValue = -1;
+                isInitProperty.boolValue = true;
+                _startApply = true;
+            }
+
+            if (_startApply == false)
+            {
+                GUI_SetParameter();
+                _startApply = true;
+            }
+
+            return result;
+            #endregion
+        }
+
+        private void GUI_ShowPropertyRect( ref Rect header, SerializedProperty property, float space = 3f)
+        {
+            #region Omit
+            bool     isBlack = EditorGUIUtility.isProSkin;
+            GUIStyle style   = (isBlack ? _labelStyle : _labelStyleLight);
+            Color    color   = (isBlack ? new Color(.3f, .3f, .3f):new Color(0.7254f, 0.7254f, 0.7254f));
+
+            /*************************************
+             *   뒷배경 상자를 그린다...
+             * ***/
+            Rect rect   = header;
+            rect.height = 70f;
+            EditorGUI.DrawRect(rect, color);
+
+
+            /************************************
+             *   프로퍼티 이름을 출력한다...
+             * ***/
+            rect = header;
+            rect.x += 10f;
+            EditorGUI.LabelField(rect, property.displayName, style);
+
+            header.x     += 20f;
+            header.y     += 20f;
+            header.width -= 40f;
+
+            #endregion
+        }
+
+        private void GUI_ShowParamType( ref Rect header, float space = 3f )
+        {
+            #region Omit
+            Rect rect = header;
+
+            /**************************************
+             *   파라미터 타입을 표시한다...
+             * ***/
+            using (var scope = new EditorGUI.ChangeCheckScope()){
+
+                bool        isGlobal = isGlobalProperty.boolValue;
+                int         value    = ParamTypeProperty.intValue;
+                System.Enum result;
+
+                rect.width *= .8f;
+
+                /**글로벌 파라미터일 경우...*/
+                if(isGlobal){
+
+                    FModGlobalParamType global = (FModGlobalParamType)value;
+                    result = EditorGUI.EnumPopup(rect, "ParamType", global);
+                }
+
+                /**로컬 파라미터일 경우...*/
+                else{
+
+                    FModLocalParamType local = (FModLocalParamType)value;
+                    result = EditorGUI.EnumPopup(rect, "ParamType", local);
+                }
+
+                /**값이 변경되었을 경우 갱신한다...*/
+                if(scope.changed)
+                {
+                    ParamTypeProperty.intValue = Convert.ToInt32(result);
+                    GUI_SetParameter();
+                }
+            }
+
+            /*****************************************
+             *   글로벌인지에 대한 여부를 표시한다...
+             * ***/
+            using (var scope = new EditorGUI.ChangeCheckScope())
+            {
+                rect.x += (rect.width+5f);
+                bool value = EditorGUI.ToggleLeft(rect, "Is Global", isGlobalProperty.boolValue);
+            
+                /**값이 변경되었다면 갱신한다...*/
+                if(scope.changed){
+
+                    isGlobalProperty.boolValue = value;
+                    ParamTypeProperty.intValue = -1;
+                    ParamValueProperty.floatValue = 0f;
+                }
+            }
+
+
+            header.y += (20f + space);
+            #endregion
+        }
+
+        private void GUI_ShowParamValue( ref Rect header, float space = 3f )
+        {
+            #region Omit
+            using (var scope = new EditorGUI.ChangeCheckScope()){
+
+                /*******************************************
+                 *   파라미터가 선택되지 않았을 경우...
+                 * ***/
+                if(ParamTypeProperty.intValue<0)
+                {
+                    EditorGUI.TextField(header, "Param Value", "(No Value)");
+                    return;
+                }
+
+                /******************************************
+                 *   레이블이 존재하지 않는 파라미터일 경우...
+                 * ***/
+                if (_labels==null)
+                {
+                    float value = EditorGUI.Slider(header, "Param Value", ParamValueProperty.floatValue, _min, _max);
+
+                    /**값이 변경되었다면 갱신.*/
+                    if(scope.changed){
+
+                        ParamValueProperty.floatValue = value;
+                    }
+
+                    return;
+                }
+
+
+                /******************************************
+                 *   레이블이 존재하는 파라미터일 경우...
+                 * ***/
+                int selected = EditorGUI.Popup(header,"Param Value", _select, _labels);
+
+                /**값이 변경되었다면 갱신...*/
+                if(_select != selected){
+
+                    _select = selected;
+                    ParamValueProperty.floatValue = (float)selected;
+                }
+            }
+
+
+            #endregion
+        }
+
+        private void GUI_SetParameter()
+        {
+            #region Omit
+            int index = ParamTypeProperty.intValue;
+            if (index < 0) return;
+
+            FModParamDesc desc  = _EditorSettings.ParamDescList[index];
+            _min = desc.Min;
+            _max = desc.Max;
+            _select = 0;
+
+            /**라벨이 존재하지 않을경우, 탈출한다...*/
+            if (desc.LableCount==0){
+
+                _labels = null;
+                return;
+            }
+
+            
+            /*************************************************
+             *   해당 파라미터의 레이블의 룩업테이블을 생성한다...
+             * ***/
+
+            /**레이블의 시작 인덱스를 구한다...*/
+            int labelBegin = 0;  
+            for(int i=0; i<index; i++){
+
+                labelBegin += _EditorSettings.ParamDescList[i].LableCount;
+            }
+
+            /**해당 레이블의 배열을 생성한다...*/
+            if (_labels==null || _labels.Length != desc.LableCount){
+
+                _labels = new string[desc.LableCount];
+            }
+
+            for(int i=0; i<desc.LableCount; i++)
+            {
+                _labels[i] = _EditorSettings.ParamLableList[labelBegin + i];
+            }
+            _select = (int)ParamValueProperty.floatValue;
+            #endregion
+        }
+
+
+
+        //===============================================
+        /////            Utility Methods             ////
+        ///==============================================
+        private float GetBaseHeight()
+        {
+            return GUI.skin.textField.CalcSize(GUIContent.none).y+ 70f;
+        }
+
+    }
+#endif
+    #endregion
+
+    //===============================================
+    /////          Property and Fields           ////
+    //===============================================
+    public int   ParamType  { get { return _paramType; } }
+    public float ParamValue { get { return _paramValue; } }
+    public bool  IsValid    { get { return (_paramType >= 0); } }
+    public bool  IsGlobal   { get { return _isGlobal; } }
+
+    [SerializeField] private int   _paramType;
+    [SerializeField] private float _paramValue;
+    [SerializeField] private bool  _isGlobal;
+
+#if UNITY_EDITOR
+    [SerializeField] private bool _init;
+#endif
+
+
+
+    //======================================
+    /////        Public methods        /////
+    //======================================
+    public void SetParameter(FModLocalParamType paramType, float value=0f)
+    {
+        _paramType  = (int)paramType;
+        _paramValue = value;
+        _isGlobal   = false;
+    }
+
+    public void SetParameter(FModGlobalParamType paramType, float value=0f)
+    {
+        _paramType  = (int)paramType;
+        _paramValue = value;
+        _isGlobal   = true;
+    }
+
+    public void ClearParameter()
+    {
+        _paramType  = -1;
+        _paramValue = 0f;
+        _isGlobal   = false;
+    }
+
+}
 
 public struct FModEventInstance
 {
@@ -255,7 +607,7 @@ public struct FModEventInstance
     }
 
     private EventInstance Ins;
-    private GameObject _AttachedGameObject;
+    private GameObject   _AttachedGameObject;
 
     //==================================
     ////        Public Methods     ///// 
@@ -326,6 +678,23 @@ public struct FModEventInstance
         Ins.setParameterByName(paramName, paramValue);
     }
 
+    public void SetParameter(FModParameterReference paramRef)
+    {
+        if (paramRef.IsValid == false) return;
+        string paramName = FModReferenceList.Params[paramRef.ParamType];
+
+        /**글로벌 파라미터일 경우...*/
+        if(paramRef.IsGlobal)
+        {
+            FMOD.Studio.System system = FMODUnity.RuntimeManager.StudioSystem;
+            system.setParameterByName(paramName, paramRef.ParamValue);
+            return;
+        }
+
+        /**로컬 파라미터일 경우...*/
+        Ins.setParameterByName( paramName, paramRef.ParamValue);
+    }
+
     public void SetParameter(string paramName, float value)
     {
         Ins.setParameterByName(paramName, value);
@@ -384,6 +753,7 @@ public struct FModEventInstance
 public interface IFModEventFadeComplete { void OnFModEventComplete(int fadeID, float goalVolume); }
 public delegate void FModEventFadeCompleteNotify( int fadeID, float goalVolume );
 
+[AddComponentMenu("FMOD Studio/FModAudioManager")]
 public sealed class FModAudioManager : MonoBehaviour
 {
     #region Editor_Extension
@@ -405,7 +775,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _StudioSettingsPath = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
         private const string _GroupFolderPath    = "Metadata/Group";
         private const string _ScriptDefine       = "FMOD_Event_ENUM";
-        private const string _EditorVersion      = "v1.230904";
+        private const string _EditorVersion      = "v1.231002";
 
         private const string _EventRootPath      = "event:/";
         private const string _BusRootPath        = "bus:/";
@@ -782,7 +1152,7 @@ public sealed class FModAudioManager : MonoBehaviour
             GUILayout.Box(useBanner, GUILayout.Width(position.width), GUILayout.Height(100f));
 
             /**Editor Version을 띄운다.*/
-            using(var scope = new GUILayout.AreaScope(new Rect(position.width*.5f-5f, 100f - 20, 300, 30))){
+            using(var scope = new GUILayout.AreaScope(new Rect(position.width*.5f-95f, 100f - 20, 300, 30))){
 
                 GUILayout.Label($"FModAudio Settings Editor {_EditorVersion}", _BoldTxtStyle);
                 scope.Dispose();
@@ -828,6 +1198,7 @@ public sealed class FModAudioManager : MonoBehaviour
                         if (scope.changed && newPath.EndsWith(".fspro")) {
 
                             _StudioPathProperty.stringValue = newPath;
+                            _StudioSettings.HasSourceProject = true;
                             ResetEditorSettings();
                         }
 
@@ -1669,6 +2040,7 @@ public sealed class FModAudioManager : MonoBehaviour
 
         private string RemoveInValidChar(string inputString)
         {
+            #region Omit
             //시작 숫자 제거
             int removeCount = Regex.Match(inputString, @"^\d*").Length;
             inputString = inputString.Substring(removeCount, inputString.Length-removeCount);
@@ -1680,6 +2052,7 @@ public sealed class FModAudioManager : MonoBehaviour
             inputString = inputString.Replace(" ", "_");
 
             return inputString;
+            #endregion
         }
 
         private void GetBankList(List<NPData> lists)
@@ -1730,12 +2103,11 @@ public sealed class FModAudioManager : MonoBehaviour
                     if (!file.Exists) continue;
 
                     try { document.LoadXml(File.ReadAllText(file.FullName)); } catch { continue; }
-                    string idNode = document.SelectSingleNode("//object/@id")?.InnerText;
-                    string nameNode = document.SelectSingleNode("//object/property[@name='name']/value")?.InnerText;
-                    string outputNode = document.SelectSingleNode("//object/relationship[@name='output']/destination")?.InnerText;
+                    string idNode       = document.SelectSingleNode("//object/@id")?.InnerText;
+                    string nameNode     = document.SelectSingleNode("//object/property[@name='name']/value")?.InnerText;
+                    string outputNode   = document.SelectSingleNode("//object/relationship[@name='output']/destination")?.InnerText;
 
-                    if (idNode != null && nameNode != null && outputNode != null)
-                    {
+                    if (idNode != null && nameNode != null && outputNode != null){
 
                         busMap.Add(idNode, new NPData { Name = nameNode, Path = outputNode });
                         lists.Add(new NPData { Name = nameNode, Path = outputNode });
@@ -1819,6 +2191,7 @@ public sealed class FModAudioManager : MonoBehaviour
 
         private bool GetParamIsAlreadyContain(string checkParamName, List<FModParamDesc> descs)
         {
+            #region Omit
             int Count = descs.Count;
             for(int i=0; i<Count; i++)
             {
@@ -1826,10 +2199,12 @@ public sealed class FModAudioManager : MonoBehaviour
             }
 
             return false;
+            #endregion
         }
 
         private int GetCategoryIndex(string categoryName, List<FModEventCategoryDesc> descs)
         {
+            #region Omit
             int Count = descs.Count;
             for(int i=0; i<Count; i++)
             {
@@ -1837,6 +2212,7 @@ public sealed class FModAudioManager : MonoBehaviour
             }
 
             return -1;
+            #endregion
         }
 
         private int GetCategoryEventStartIndex(string categoryName, List<FModEventCategoryDesc> descs)
@@ -2030,12 +2406,12 @@ public sealed class FModAudioManager : MonoBehaviour
     private int          _fadeCount = 0;
     private FadeState    _fadeState = FadeState.None;
 
-    private int     _NextBGMEvent = -1;
-    private float   _NextBGMVolume = 0f;
-    private int     _NextBGMStartPos = 0;
-    private int     _NextBGMParam = -1;
-    private float   _NextBGMParamValue = 0f;
-    private Vector3 _NextBGMPosition = Vector3.zero;
+    private int     _NextBGMEvent       = -1;
+    private float   _NextBGMVolume      = 0f;
+    private int     _NextBGMStartPos    = 0;
+    private int     _NextBGMParam       = -1;
+    private float   _NextBGMParamValue  = 0f;
+    private Vector3 _NextBGMPosition    = Vector3.zero;
 
 
     //=======================================
@@ -2231,6 +2607,18 @@ public sealed class FModAudioManager : MonoBehaviour
         return CreateInstance((FModBGMEventType)eventType, position);
     }
 
+    public static FModEventInstance CreateInstance(FMODUnity.EventReference eventRef, Vector3 position = default)
+    {
+        if (_Instance == null) return new FModEventInstance();
+
+        try
+        {
+            FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(eventRef.Guid), position);
+            return newInstance;
+        }
+        catch { return new FModEventInstance(); }
+    }
+
     public static void StopAllInstance()
     {
         if (_Instance == null) return;
@@ -2297,6 +2685,37 @@ public sealed class FModAudioManager : MonoBehaviour
         PlayOneShotSFX(eventType, position, volume, startTimelinePosition, false, (int)paramType, paramValue, minDistance, maxDistance);
     }
 
+    public static void PlayOneShotSFX(FModSFXEventType eventType, FModParameterReference paramRef, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
+    {
+        if (paramRef.IsValid == false) return;
+
+        /**글로벌 파라미터일 경우...*/
+        if (paramRef.IsGlobal){
+
+            PlayOneShotSFX( eventType, (FModGlobalParamType)paramRef.ParamType, paramRef.ParamValue, position, volume, startTimelinePosition, minDistance,maxDistance);
+            return;
+        }
+
+        /**로컬 파라미터일 경우...*/
+        PlayOneShotSFX(eventType, (FModLocalParamType)paramRef.ParamType, paramRef.ParamValue, position, volume, startTimelinePosition, minDistance, maxDistance);
+    }
+
+    public static void PlayOneShotSFX(FModNoGroupEventType eventType, FModParameterReference paramRef, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1, float minDistance = 1f, float maxDistance = 20f)
+    {
+        if (paramRef.IsValid == false) return;
+
+        /**글로벌 파라미터일 경우...*/
+        if (paramRef.IsGlobal)
+        {
+
+            PlayOneShotSFX(eventType, (FModGlobalParamType)paramRef.ParamType, paramRef.ParamValue, position, volume, startTimelinePosition, minDistance, maxDistance);
+            return;
+        }
+
+        /**로컬 파라미터일 경우...*/
+        PlayOneShotSFX(eventType, (FModLocalParamType)paramRef.ParamType, paramRef.ParamValue, position, volume, startTimelinePosition, minDistance, maxDistance);
+    }
+
     public static void PlayOneShotSFX(FModNoGroupEventType eventType, Vector3 position = default, float volume = -1f, int startTimelinePosition = -1,  float minDistance = 1f, float maxDistance = 20f)
     {
         PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePosition, true, -1, 0, minDistance, maxDistance);
@@ -2311,6 +2730,35 @@ public sealed class FModAudioManager : MonoBehaviour
     {
         PlayOneShotSFX((FModSFXEventType)eventType, position, volume, startTimelinePosition, false, (int)paramType, paramValue, minDistance, maxDistance);
     }
+
+    public static void PlayOneShotSFX(FMODUnity.EventReference eventRef, Vector3 position, FModParameterReference paramRef =default, float volume=-1f, int startTimelinePosition=-1, float minDistance=1f, float maxDistance=20f)
+    {
+        #region Omit
+        /**************************************
+         *   해당 GUID에 대한 인덱스값을 얻는다...
+         * ***/
+        int Count = FModReferenceList.Events.Length;
+        int       index = -1;
+        FMOD.GUID guid  = eventRef.Guid;
+        for(int i=0; i<Count; i++)
+        {
+            if (FModReferenceList.Events[i].Equals(guid)){
+
+                index = i;
+                break;
+            }
+        }
+
+        /**존재하지 않는 이벤트는 실행할 수 없다...*/
+        if (index == -1) return;
+
+        /**********************************************
+         *   파라미터값에 따라 적절히 오버로딩을 호출한다...
+         * ***/
+        PlayOneShotSFX((FModSFXEventType)index, position, volume, startTimelinePosition, paramRef.IsGlobal, paramRef.ParamType, paramRef.ParamValue, minDistance, maxDistance);
+        #endregion
+    }
+
 
     /*********************************************
      *   BGM Methods
@@ -2391,6 +2839,20 @@ public sealed class FModAudioManager : MonoBehaviour
         PlayBGM(eventType, volume, startTimelinePosition, true, (int)paramType, paramValue, position);
     }
 
+    public static void PlayBGM(FModBGMEventType eventType, FModParameterReference paramRef, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
+    {
+        if (paramRef.IsValid == false) return;
+
+        /**글로벌 파라미터일 경우...*/
+        if(paramRef.IsGlobal)
+        {
+            PlayBGM(eventType, (FModGlobalParamType)paramRef.ParamType, paramRef.ParamValue, volume, startTimelinePosition, position);
+        }
+
+        /**로컬 파라미터일 경우...*/
+        PlayBGM(eventType, (FModLocalParamType)paramRef.ParamType, paramRef.ParamValue, volume, startTimelinePosition, position);
+    }
+
     public static void PlayBGM(FModNoGroupEventType eventType, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
         PlayBGM((FModBGMEventType)eventType, volume, startTimelinePosition, false, -1, 0, position);
@@ -2404,6 +2866,45 @@ public sealed class FModAudioManager : MonoBehaviour
     public static void PlayBGM(FModNoGroupEventType eventType, FModGlobalParamType paramType, float paramValue = 0f,float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
     {
         PlayBGM((FModBGMEventType)eventType, volume, startTimelinePosition, true, (int)paramType, paramValue, position);
+    }
+
+    public static void PlayBGM(FModNoGroupEventType eventType, FModParameterReference paramRef, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
+    {
+        if (paramRef.IsValid == false) return;
+
+        /**글로벌 파라미터일 경우...*/
+        if (paramRef.IsGlobal)
+        {
+            PlayBGM((FModBGMEventType)eventType, (FModGlobalParamType)paramRef.ParamType, paramRef.ParamValue, volume, startTimelinePosition, position);
+        }
+
+        /**로컬 파라미터일 경우...*/
+        PlayBGM((FModBGMEventType)eventType, (FModLocalParamType)paramRef.ParamType, paramRef.ParamValue, volume, startTimelinePosition, position);
+    }
+
+    public static void PlayBGM(FMODUnity.EventReference eventRef, FModParameterReference paramRef=default, float volume = -1f, int startTimelinePosition = -1, Vector3 position = default)
+    {
+        #region Omit
+        /**************************************
+         *   해당 GUID에 대한 인덱스값을 얻는다...
+         * ***/
+        int Count = FModReferenceList.Events.Length;
+        int index = -1;
+        FMOD.GUID guid = eventRef.Guid;
+        for (int i = 0; i < Count; i++)
+        {
+            if (FModReferenceList.Events[i].Equals(guid)){
+
+                index = i;
+                break;
+            }
+        }
+
+        /**존재하지 않는 이벤트는 실행할 수 없다...*/
+        if (index == -1) return;
+
+        PlayBGM((FModBGMEventType)index, volume, startTimelinePosition, paramRef.IsGlobal, paramRef.ParamType, paramRef.ParamValue, position);
+        #endregion
     }
 
     public static void StopBGM()
@@ -2461,6 +2962,21 @@ public sealed class FModAudioManager : MonoBehaviour
     public static void SetBGMParameter(FModLocalParamType paramType, float paramValue)
     {
         _Instance._BGMIns.SetParameter(paramType, paramValue);
+    }
+
+    public static void SetBGMParameter(FModParameterReference paramRef, float paramValue)
+    {
+        if (paramRef.IsValid == false) return;
+
+        /**글로벌 파라미터일 경우....*/
+        if(paramRef.IsGlobal)
+        {
+            SetBGMParameter( (FModGlobalParamType)paramRef.ParamType, paramValue);
+            return;
+        }
+
+        /**로컬 파라미터일 경우...*/
+        SetBGMParameter( (FModLocalParamType)paramRef.ParamType, paramValue);
     }
 
     public static void SetBGMParameter(string paramType, float paramValue)
