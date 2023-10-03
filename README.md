@@ -44,11 +44,11 @@
 ``` c#
 private IEnumerator Start()
 {
-    FModAudioManager.AutoFadeInOutBGM    = true;
-    FModAudioManager.AutoFadeBGMDuration = 3f;
+    FModAudioManager.UsedBGMAutoFade     = true;
+    FModAudioManager.BGMAutoFadeDuration = 3f;
     FModAudioManager.PlayBGM(FModBGMEventType.Wagtail_bgm_title, 2f);
 
-	  //10초간 대기한다....
+    //10초간 대기한다....
     yield return new WaitForSecondsRealtime(10f);
 
     FModAudioManager.PlayBGM(FModBGMEventType.tavuti_ingame1, 3f);
@@ -58,7 +58,7 @@ private IEnumerator Start()
 (▲(1): BGM 자동 페이드 적용 및 BGM 실행 및 전환...  )
 
 ``` c#
-private IEnumerator Start()
+private void Start()
 {
     FModAudioManager.PlayOneShotSFX(
 			FModSFXEventType.Player_Jump, 
