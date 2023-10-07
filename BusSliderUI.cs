@@ -4,8 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /**********************************************************
- *  ½½¶óÀÌ´õ UI¸¦ ÅëÇØ ¿øÇÏ´Â BusÀÇ º¼·ıÀ» Á¶ÀıÇÏ´Â ÄÄÆ÷³ÍÆ®...
+ *  ìŠ¬ë¼ì´ë” UIë¥¼ í†µí•´ ì›í•˜ëŠ” Busì˜ ë³¼ë¥¨ì„ ì¡°ì ˆí•˜ëŠ” ì»´í¬ë„ŒíŠ¸...
  * ***/
+#if FMOD_Event_ENUM
 [RequireComponent(typeof(UnityEngine.UI.Slider))]
 public sealed class BusSliderUI : MonoBehaviour
 {
@@ -22,7 +23,7 @@ public sealed class BusSliderUI : MonoBehaviour
     //===========================================
     private void Start()
     {
-        /**ÃÊ±âÈ­ ¹× busÃÊ±â°ª Àû¿ë...*/
+        /**ì´ˆê¸°í™” ë° busì´ˆê¸°ê°’ ì ìš©...*/
         if(_slider = GetComponent<UnityEngine.UI.Slider>())
         {
             float busVolume = Mathf.Clamp(FModAudioManager.GetBusVolume(busType), 0f, 1f);
@@ -35,7 +36,8 @@ public sealed class BusSliderUI : MonoBehaviour
 
     private void ValueChanged()
     {
-        /**½½¶óÀÌ´õÀÇ °ªÀÌ ¹Ù²î¸é FMod BusÀÇ º¼·ıÀ» ¹Ù²Û´Ù...*/
+        /**ìŠ¬ë¼ì´ë”ì˜ ê°’ì´ ë°”ë€Œë©´ FMod Busì˜ ë³¼ë¥¨ì„ ë°”ê¾¼ë‹¤...*/
         FModAudioManager.SetBusVolume(busType, _slider.value);
     }
 }
+#endif
