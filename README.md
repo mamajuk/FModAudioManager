@@ -109,6 +109,40 @@ FModAudioManager.LoadAllBanks();
 
 (▲(5): 원하는 Bank 로드/언로드 및 모든 Bank로드. )
 
+``` c#
+ FModParameterReference paramRef = new FModParameterReference();
+	paramRef.SetParameter(
+   	FModGlobalParamType.BGMIsLooping,
+   	FModParamLabel.BGMIsLooping.Used
+);
 
+FModAudioManager.PlayBGM(FModBGMEventType.Wagtail_bgm_title, paramRef);
+```
+```` c#
+ FModAudioManager.PlayBGM(
+     FModBGMEventType.tavuti_ingame1,
+      FModGlobalParamType.BGMIsLooping,
+      FModParamLabel.BGMIsLooping.UnUsed
+);
+````
+```` c#
+FModAudioManager.PlayOneShotSFX(
+
+    FModSFXEventType.Broken,
+    FModLocalParamType.BrokenType,
+    FModParamValueRange.BrokenType.Max
+);
+````
+```` c#
+FModEventInstance Instance = FModAudioManager.CreateInstance(FModSFXEventType.Player_Walk);
+Instance.Volume 		= .5f;
+Instance.Pitch 			= .1f;
+Instance.AttachedGameObject 	= gameObject;
+Instance.Position 		= transform.position;
+Instance.Set3DDistance(1f, 10f);
+Instance.SetParameter(FModLocalParamType.PlayerWalkType, FModParamLabel.PlayerWalkType.Grass);
+Instance.Play();
+````
+(▲(6): Event의 파리미터를 수정하는 다양한 방법들.  )
 
 
