@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /**************************************************************
- *   ÀÎ½ºÆåÅÍ¿¡¼­ FMod Event¸¦ Àç»ıÇÒ ¼ö ÀÖ´Â ±â´ÉÀ» Á¦°øÇÕ´Ï´Ù...
+ *   ì¸ìŠ¤í™í„°ì—ì„œ FMod Eventë¥¼ ì¬ìƒí•  ìˆ˜ ìˆëŠ” ê¸°ëŠ¥ì„ ì œê³µí•©ë‹ˆë‹¤...
  * ***/
+#if FMOD_Event_ENUM
 [AddComponentMenu("FMOD Studio/FModInspectorHelper")]
 public sealed class FModInspectorHelper : MonoBehaviour
 {
@@ -43,3 +44,4 @@ public sealed class FModInspectorHelper : MonoBehaviour
         FModAudioManager.PlayBGM(desc.EventRef, desc.ParamRef);
     }
 }
+#endif
