@@ -1,5 +1,5 @@
 # FModAudioManager For UnityEngine
-[![class_reference](https://img.shields.io/badge/class_reference-https%3A%2F%2Fimg.shields.io%2Fbadge%2Fjust%2520the%2520message-8A2BE2)](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)
+[![class_reference](https://img.shields.io/badge/class_reference-https%3A%2F%2Fbramble--route--61a.notion.site%2FUnity--C--FModAudioManager--e3837f0765fe4254aa40a0156d050288%3Fpvs%3D4-green)](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)
 
 
 
