@@ -1,4 +1,9 @@
 # FModAudioManager For UnityEngine
+[![class_reference](https://img.shields.io/badge/class_reference-https%3A%2F%2Fimg.shields.io%2Fbadge%2Fjust%2520the%2520message-8A2BE2)](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)
+
+
+
+
 ## Overview
 ```FModAudioManager```는 기존 [FMod for unity API](https://github.com/fmod/fmod-for-unity)를 쉽고 직관적으로 사용하기 위하여 디자인 되었습니다. 특정 음원을 재생하기 위해서는, 기존 ```Unity Audio API``` 및 ```FMod for Unity API```의 경우, 사용할 음원을 나타내는 ```AudioClip```, ```EventReference```를 **직렬화(Serialized)** 하여 **Unity Editor Inspector** 에 노출시키거나, **FMod Studio Project** 에 표기된 경로 및 **전역고유식별자(GUID)** 를 참조하여 정확히 기입하여야 합니다. 이 작업은 추후 사용할 음원을 **Unity Editor Inspector** 를 통하여 유연하게 교체할 수 있다는 장점이 있지만, **C# Script** 를 작성할 때 직관성이 떨어지며, 음원이 갱신될 때마다 위 작업을 반복해야 한다는 번거로움이 발생합니다. 이는 FMod에서 사용되는 데이터인 ```Bus```, ```Bank```, ```Parameter```들을 사용할 때도 마찬가지 입니다. 이를 해결하기 위해, ```FModAudioManager```는 연결된 **FMod Studio Project**의 모든 ```Event```, ```Bus```, ```Bank```, ```Global/Local Parameter```, ```Parameter max/Min Value```, ```Parameter labled Value```에 대한 열거형 및 구조체를 제공하여 별도로 **Inspector** 창에서 작업할 필요 없이 직관적이고 편리한 오디오 관련 스크립팅을 가능하도록 도와줍니다. 
 ## Tutorial
