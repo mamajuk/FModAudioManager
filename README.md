@@ -1,11 +1,10 @@
 # FModAudioManager For UnityEngine
-[![class_reference](https://img.shields.io/badge/class_reference-https%3A%2F%2Fbramble--route--61a.notion.site%2FUnity--C--FModAudioManager--e3837f0765fe4254aa40a0156d050288%3Fpvs%3D4-green)](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)
-
-
-
 
 ## Overview
-```FModAudioManager```는 기존 [FMod for unity API](https://github.com/fmod/fmod-for-unity)를 쉽고 직관적으로 사용하기 위하여 디자인 되었습니다. 특정 음원을 재생하기 위해서는, 기존 ```Unity Audio API``` 및 ```FMod for Unity API```의 경우, 사용할 음원을 나타내는 ```AudioClip```, ```EventReference```를 **직렬화(Serialized)** 하여 **Unity Editor Inspector** 에 노출시키거나, **FMod Studio Project** 에 표기된 경로 및 **전역고유식별자(GUID)** 를 참조하여 정확히 기입하여야 합니다. 이 작업은 추후 사용할 음원을 **Unity Editor Inspector** 를 통하여 유연하게 교체할 수 있다는 장점이 있지만, **C# Script** 를 작성할 때 직관성이 떨어지며, 음원이 갱신될 때마다 위 작업을 반복해야 한다는 번거로움이 발생합니다. 이는 FMod에서 사용되는 데이터인 ```Bus```, ```Bank```, ```Parameter```들을 사용할 때도 마찬가지 입니다. 이를 해결하기 위해, ```FModAudioManager```는 연결된 **FMod Studio Project**의 모든 ```Event```, ```Bus```, ```Bank```, ```Global/Local Parameter```, ```Parameter max/Min Value```, ```Parameter labled Value```에 대한 열거형 및 구조체를 제공하여 별도로 **Inspector** 창에서 작업할 필요 없이 직관적이고 편리한 오디오 관련 스크립팅을 가능하도록 도와줍니다. 
+```FModAudioManager```는 기존 [FMod for unity](https://github.com/fmod/fmod-for-unity)를 더 쉽고 직관적으로 사용하기 위하여 디자인 되었습니다. 기존 **FMod for Unity API** 에서 특정 음원을 재생하기 위해서는, ```EventReference``` 구조체를 **직렬화(Serialized)** 한 다음 **Inspector Window** 에서 사용할 음원과 대응되는 값을 적절히 기입하거나, **FMod Studio Project** 에 표기된 이벤트의 **경로(Path)** 또는 **전역고유식별자(GUID)** 를 참조해 정확히 기입하여야 합니다.
+
+**C# Script** 를 작성하면서 특정 음원이 필요할 때마다 이러한 작업들을 반복해야 하며, 이는 **FMod** 에서 사용되는 데이터인 ```Bus```, ```Bank```, ```Parameter```들을 사용할 때도 마찬가지 입니다. 이런 번거로운 작업을 해결하기 위해, ```FModAudioManager``` 는 **FMod Studio Project** 로부터 모든 ```Event```, ```Bus```, ```Bank```, ```Global/Local Parameter```, ```Parameter Max/Min Value```, ```Parameter labled Value```과 대응되는 열거형 및 구조체를 자동으로 작성해줍니다. 또한 생성된 **열거형**과 **구조체**를 사용할 수 있는 **Static methods** 들을 제공함으로서, 직관적이고 편리하게 오디오 관련 스크립트를 작성할 수 있도록 도와줍니다.
+
 ## Tutorial
 ```FModAudioManager```는 각 열거형들을 생성하고, ```FMod Studio Project```와 연결 및 바로가기를 하는 기능을 도와주는 ```FModAudioSettings Editor```를 제공합니다. ```FModAudioManager API```를 사용하기 전에, ```FModAudioSettings Editor```를 이용한 사전작업이 필요합니다. 다음은 적용할 **Unity Project**에 ```FMod For Unity API```가 적용되었음을 가정하고 ```FModAudioManager```의 기초적인 사용방법을 보여줍니다. <br>
 
