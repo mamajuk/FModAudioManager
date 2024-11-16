@@ -25,15 +25,24 @@
 </td></tr></table>
 
 위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
-```FModBusType```: Bus들을 나타내는 열거형입니다.<br/>
-```FModBankType```: Bank들을 나타내는 열거형입니다.<br/>
-```FModGlobalParamType```: Global Parameter를 나타내는 열거형입니다.<br/>
-```FModLocalParamType```: Local Parameter를 나타내는 열거형입니다.<br/>
-```FModParamLabel```: Parameter들의 labled 값이 보관된 구조체입니다.<br/>
-```FModParamValueRange```: Parameter들의 Min, Max값이 보관된 구조체입니다.<br/>
-```FModBGMEventType```: BGM으로 분류된 Event들을 나타내는 열거형입니다.( Event의 루트폴더 이름이 **BGM**일 때 해당 열거형으로 분류됩니다. )<br/>
-```FModSFXEventType```: SFX으로 분류된 Event들을 나타내는 열거형입니다. ( Event의 루트폴더 이름이 **SFX**일 때 해당 열거형으로 분류됩니다. )<br/>
-```FModNoGroupEventType```: BGM, SFX로 분류되지 못한 Event들을 나타내는 열거형입니다.<br/>
+```FModBusType```: <br/>
+Bus들을 나타내는 열거형입니다.<br/>
+```FModBankType```: <br/>
+Bank들을 나타내는 열거형입니다.<br/>
+```FModGlobalParamType```: <br/>
+Global Parameter를 나타내는 열거형입니다.<br/>
+```FModLocalParamType```: <br/>
+Local Parameter를 나타내는 열거형입니다.<br/>
+```FModParamLabel```: <br/>
+Parameter들의 labled 값이 보관된 구조체입니다.<br/>
+```FModParamValueRange```: <br/>
+Parameter들의 Min, Max값이 보관된 구조체입니다.<br/>
+```FModBGMEventType```: <br/>
+BGM으로 분류된 Event들을 나타내는 열거형입니다.( Event의 루트폴더 이름이 **BGM**일 때 해당 열거형으로 분류됩니다. )<br/>
+```FModSFXEventType```: <br/>
+SFX으로 분류된 Event들을 나타내는 열거형입니다. ( Event의 루트폴더 이름이 **SFX**일 때 해당 열거형으로 분류됩니다. )<br/>
+```FModNoGroupEventType```: <br/>
+BGM, SFX로 분류되지 못한 Event들을 나타내는 열거형입니다.<br/>
 
 
 이후 **FMod Studio Project** 에서 새로운 음원이 추가되거나, 변경된다면 위 과정을 통해 열거형 및 구조체를 만들면 됩니다. 이제 **Visual Studio** 와 같은 IDE를 통해 **C# Script**를 작성한다면, 열거형 및 구조체에 대한 코드 힌트가 표시되어 직관적인 스크립팅을 진행할 수 있습니다. 
