@@ -1,4 +1,4 @@
-# FModAudioManager For UnityEngine
+# FModAudioManager For Unity
 
 ## Overview
 ```FModAudioManager```는 기존 [FMod for unity](https://github.com/fmod/fmod-for-unity)를 더 쉽고 직관적으로 사용하기 위하여 디자인 되었습니다. 기존 **FMod for Unity API** 에서 특정 음원을 재생하기 위해서는, ```EventReference``` 구조체를 **직렬화(Serialized)** 한 다음 **Inspector Window** 에서 사용할 음원과 대응되는 값을 적절히 기입하거나, **FMod Studio Project** 에 표기된 이벤트의 **경로(Path)** 또는 **전역고유식별자(GUID)** 를 참조해 정확히 기입하여야 합니다.
