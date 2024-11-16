@@ -18,7 +18,7 @@
 <img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_LoadedStudioData.gif?raw=true">
 </td></tr></table>
 
-**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Loaded Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 다음, **Save and Apply Settings** 버튼을 눌러 불러온 데이터를 저장하고, ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체를 생성하며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다.
+**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Loaded Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 후, **Save and Apply Settings** 버튼을 누르면 ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체가 작성되며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다.
 
 <table><tr><td>
 <img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_Scripting.gif?raw=true">
