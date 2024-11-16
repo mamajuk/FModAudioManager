@@ -2470,7 +2470,6 @@ public sealed class FModAudioManager : MonoBehaviour
     private FMOD.Studio.Bus[] _BusList;
 
     private FadeInfo[]   _fadeInfos = new FadeInfo[10];
-    private Coroutine    _fadeCoroutine;
     private int          _fadeCount = 0;
     private FadeState    _fadeState = FadeState.None;
 
@@ -3268,12 +3267,6 @@ public sealed class FModAudioManager : MonoBehaviour
     {
         #region Omit
         if (!InstanceIsValid()) return;
-
-        if (_Instance._fadeCoroutine != null){
-
-            _Instance.StopCoroutine(_Instance._fadeCoroutine);
-            _Instance._fadeCoroutine = null;
-        }
 
         _Instance._fadeCount = 0;
         #endregion
