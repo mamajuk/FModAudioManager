@@ -36,7 +36,7 @@
 ```FModBGMEventType```: **루트폴더** 이름이 **BGM**인 **Event**들을 나타내는 열거형입니다.<br/>
 ```FModSFXEventType```: **루트폴더** 이름이 **SFX**인 **Event**들을 나타내는 열거형입니다.<br/>
 ```FModNoGroupEventType```: **BGM**, **SFX**로 분류되지 못한 **Event**들을 나타내는 열거형입니다.<br/>
-( ※루트폴더는 **FModAudioSettings Editor** 에서 **FMod Events > EventGroup RootFolder Settings** 를 통해 변경할 수 있습니다. )
+( ※루트폴더는 **FModAudioSettings Editor** 에서 **FMod Events > EventGroup RootFolder Settings** 를 통해 변경할 수 있습니다. )<br/>
 ( ※이름이 동일한 **Event**, **Bus**는 경로가 이름에 포함됩니다. )
 
 ------------------------------------------------------------------------
