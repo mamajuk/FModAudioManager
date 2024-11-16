@@ -6,6 +6,16 @@
 **C# Script** 를 작성하면서 특정 음원이 필요할 때마다 이러한 작업들을 반복해야 하며, 이는 **FMod** 에서 사용되는 데이터인 ```Bus```, ```Bank```, ```Parameter```들을 사용할 때도 마찬가지 입니다. 이런 번거로운 작업을 해결하기 위해, ```FModAudioManager``` 는 **FMod Studio Project** 로부터 모든 ```Event```, ```Bus```, ```Bank```, ```Global/Local Parameter```, ```Parameter Max/Min Value```, ```Parameter labled Value```과 대응되는 열거형 및 구조체를 자동으로 작성해줍니다. 또한 생성된 **열거형**과 **구조체**를 사용할 수 있는 **Static methods** 들을 제공함으로서, 직관적이고 편리하게 오디오 관련 스크립트를 작성할 수 있도록 도와줍니다.
 
 ## Tutorial
+먼저 **Package Manager**를 통해 **FMod for Unity API**를 프로젝트에 적용한 다음, ```FModAudioManager```를 적용합니다. 그 후 **Scene** 에서 기존 **Unity Audio API** 관련 컴포넌트들을 모두 제거하고, ```FMOD Studio Listener```와 ```FModAudioManager``` 컴포넌트를 원하는 ```GameObject```에 부착합니다. ( ```FModAudioManager```는 **Scene** 이동으로 파괴되지 않으며, 복수로 존재할 수 없는 컴포넌트입니다. )
+
+<table><tr><td>
+<img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_ConnectFModProject.gif?raw=true">
+</td></tr></table>
+
+이제 **FMod Studio Project**를 프로젝트에 연결해야할 차례입니다. 메뉴창에서 **FMOD > FMOD Audio Settings**를 눌러 ```FModAudioManager``` 에서 제공하는 **FModAudioSettings Editor**를 화면에 띄웁니다. **FModAudioSettings Editor** 상단에 존재하는 돋보기 버튼을 눌러 원하는 **FMOd Studio Project**를 프로젝트에 손쉽게 연결할 수 있습니다. 참고로 **FMod Studio** 아이콘이 새겨진 버튼을 누르면 연결된 **FMod Studio Project**에 빠르게 접근할 수도 있습니다.
+
+
+
 ```FModAudioManager```는 각 열거형들을 생성하고, ```FMod Studio Project```와 연결 및 바로가기를 하는 기능을 도와주는 ```FModAudioSettings Editor```를 제공합니다. ```FModAudioManager API```를 사용하기 전에, ```FModAudioSettings Editor```를 이용한 사전작업이 필요합니다. 다음은 적용할 **Unity Project**에 ```FMod For Unity API```가 적용되었음을 가정하고 ```FModAudioManager```의 기초적인 사용방법을 보여줍니다. <br>
 
 우선 적용할 **Unity Project**의 모든 **Scene**에 포함되어 있는 기존 ```Unity Audio API```컴포넌트를 제거하고, ```FMOD Studio Listener```와 ```FModAudioManager``` **Component**를 원하는 ```GameObject```에 부착합니다. ( ```FModAudioManager```는 **Scene** 이동에 대한 파괴를 보장하지 않으며, 각 **Scene**에서 복수로 존재할 수 없는 **Component**입니다. )
