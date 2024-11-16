@@ -18,17 +18,27 @@
 <img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_LoadedStudioData.gif?raw=true">
 </td></tr></table>
 
-**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Loaded Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 다음, **Save and Apply Settings** 버튼을 눌러 불러온 데이터를 저장하고, ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체를 생성합니다.
-
-
-
-
+**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Loaded Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 다음, **Save and Apply Settings** 버튼을 눌러 불러온 데이터를 저장하고, ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체를 생성하며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다.
 
 <table><tr><td>
-<img width="400px" src="https://www.notion.so/image/https%3A%2F%2Fs3-us-west-2.amazonaws.com%2Fsecure.notion-static.com%2Fffc72e99-6cff-4df5-85ae-d343d9f0b328%2FUntitled.png?table=block&id=f45b9979-5367-44bb-a0d8-48522b06e8c1&spaceId=4a0956e0-5579-46a0-b3e2-a74896f5ae67&width=1400&userId=40a1489e-b817-44b0-9900-e95ad958047a&cache=v2">
+<img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_Scripting.gif?raw=true">
 </td></tr></table>
 
-위 과정을 적용하면 불러온 설정들에 대한 열거형 및 구조체가 작성된 **C# Script**를 컴파일을 하게 됩니다. ```Loaded Project Settings```버튼으로 사용할 ```FMod Studio Project```로부터 설정을 가져오고, ```Save and Apply Settings```버튼으로 ```FModAudioManager```에서 사용할 수 있는 열거형 및 구조체를 만드는 작업은 ```FMod Studio Project```를 갱신할 때마다 해주어야합니다. 이 과정을 끝마쳤다면 이제 ```FModAudioManager```를 사용할 준비가 끝났습니다. 다음은 기본적인 사용방법들에 대한 예시들을 보여주며, 더 자세한 사용방법은 [FMod Audio Manager Reference](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)를 참고하십시오.
+위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
+```FModBusType```: Bus들을 나타내는 열거형입니다.<br/>
+```FModBankType```: Bank들을 나타내는 열거형입니다.<br/>
+```FModGlobalParamType```: Global Parameter를 나타내는 열거형입니다.<br/>
+```FModLocalParamType```: Local Parameter를 나타내는 열거형입니다.<br/>
+```FModParamLabel```: Parameter들의 labled 값이 보관된 구조체입니다.<br/>
+```FModParamValueRange```: Parameter들의 Min, Max값이 보관된 구조체입니다.<br/>
+```FModBGMEventType```: BGM으로 분류된 Event들을 나타내는 열거형입니다.( Event의 루트폴더 이름이 **BGM**일 때 해당 열거형으로 분류됩니다. )<br/>
+```FModSFXEventType```: SFX으로 분류된 Event들을 나타내는 열거형입니다. ( Event의 루트폴더 이름이 **SFX**일 때 해당 열거형으로 분류됩니다. )<br/>
+```FModNoGroupEventType```: BGM, SFX로 분류되지 못한 Event들을 나타내는 열거형입니다.<br/>
+
+
+이후 **FMod Studio Project** 에서 새로운 음원이 추가되거나, 변경된다면 위 과정을 통해 열거형 및 구조체를 만들면 됩니다. 이제 **Visual Studio** 와 같은 IDE를 통해 **C# Script**를 작성한다면, 열거형 및 구조체에 대한 코드 힌트가 표시되어 직관적인 스크립팅을 진행할 수 있습니다. 
+
+다음은 기본적인 사용방법들에 대한 예시들을 보여주며, 더 자세한 사용방법은 [FMod Audio Manager Reference](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)를 참고하십시오.
 ``` c#
 private IEnumerator Start()
 {
