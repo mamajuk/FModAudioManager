@@ -799,7 +799,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _StudioSettingsPath = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
         private const string _GroupFolderPath    = "Metadata/Group";
         private const string _ScriptDefine       = "FMOD_Event_ENUM";
-        private const string _EditorVersion      = "v1.241115";
+        private const string _EditorVersion      = "v1.241116";
 
         private const string _EventRootPath      = "event:/";
         private const string _BusRootPath        = "bus:/";
@@ -2458,6 +2458,7 @@ public sealed class FModAudioManager : MonoBehaviour
     public static FModEventFadeCompleteNotify OnEventFadeComplete;
 
 
+
     //=======================================
     /////            Fields            /////
     ///======================================
@@ -2479,6 +2480,7 @@ public sealed class FModAudioManager : MonoBehaviour
     private int     _NextBGMParam         = -1;
     private float   _NextBGMParamValue    = 0f;
     private Vector3 _NextBGMPosition      = Vector3.zero;
+
 
 
     //=======================================
@@ -3419,7 +3421,8 @@ public sealed class FModAudioManager : MonoBehaviour
         #endregion
     }
 
-#endif
+
+
     //=======================================
     /////        Magic Methods           /////
     ///======================================
@@ -3472,5 +3475,7 @@ public sealed class FModAudioManager : MonoBehaviour
             FadeProgress_internal();
         #endregion
     }
+
+#endif
 
 }
