@@ -1813,9 +1813,7 @@ public sealed class FModAudioManager : MonoBehaviour
             for (int i = 0; i < Count; i++){
 
                 FModParamDesc desc = paramDescs[i];
-                if (desc.LableCount <= 0) continue;
-
-                string structName = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
+                string structName  = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
 
                 _builder.AppendLine($"    public struct {structName}");
                 _builder.AppendLine("    {");
