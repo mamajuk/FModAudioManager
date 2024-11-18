@@ -9,6 +9,8 @@ using System;
 using System.Text.RegularExpressions;
 using UnityEngine.Events;
 using System.Xml;
+using System.Runtime.InteropServices;
+using Unity.VisualScripting;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -410,7 +412,7 @@ public struct FModEventInstance
     //==================================
     ////     Property And Fields   ///// 
     //==================================
-    public FMOD.GUID    GUID
+    public FMOD.GUID     GUID
     {
         get
         {
@@ -424,7 +426,7 @@ public struct FModEventInstance
         }
 
     }
-    public bool         IsPaused 
+    public bool          IsPaused 
     { 
         get {
 
@@ -433,7 +435,7 @@ public struct FModEventInstance
             return ret;
         } 
     }
-    public bool         IsLoop
+    public bool          IsLoop
     {
         get
         {
@@ -445,7 +447,7 @@ public struct FModEventInstance
             return isOneShot;
         }
     }
-    public bool         Is3DEvent
+    public bool          Is3DEvent
     {
         get
         {
@@ -458,7 +460,7 @@ public struct FModEventInstance
         }
 
     }
-    public Vector3      Position
+    public Vector3       Position
     {
         get
         {
@@ -474,8 +476,8 @@ public struct FModEventInstance
             Ins.set3DAttributes(FMODUnity.RuntimeUtils.To3DAttributes(value));
         }
     }
-    public bool         IsValid{ get{ return Ins.isValid(); } }
-    public float        Volume
+    public bool          IsValid{ get{ return Ins.isValid(); } }
+    public float         Volume
     {
         get
         {
@@ -487,18 +489,7 @@ public struct FModEventInstance
 
         set { Ins.setVolume((value < 0 ? 0f : value)); }
     }
-    public GameObject   AttachedGameObject
-    {
-        get { return _AttachedGameObject; }
-
-        set {
-
-            if (value == null) FMODUnity.RuntimeManager.DetachInstanceFromGameObject(Ins);
-            else FMODUnity.RuntimeManager.AttachInstanceToGameObject(Ins, value.transform);
-            _AttachedGameObject = value;
-        }
-    }
-    public float        Pitch
+    public float         Pitch
     {
         get
         {
@@ -509,7 +500,7 @@ public struct FModEventInstance
 
         set { Ins.setPitch(value); }
     }
-    public bool         IsPlaying
+    public bool          IsPlaying
     {
         get
         {
@@ -519,7 +510,7 @@ public struct FModEventInstance
         }
 
     }
-    public int          TimelinePosition
+    public int           TimelinePosition
     {
         get
         {
@@ -530,7 +521,7 @@ public struct FModEventInstance
 
         set{  Ins.setTimelinePosition(value); }
     }
-    public float        TimelinePositionRatio
+    public float         TimelinePositionRatio
     {
         get
         {
@@ -558,7 +549,7 @@ public struct FModEventInstance
             Ins.setTimelinePosition( Mathf.RoundToInt(length*ratio) );
         }
     }
-    public int          Length
+    public int           Length
     {
         get
         {
@@ -570,7 +561,7 @@ public struct FModEventInstance
             return length;
         }
     }
-    public float        Min3DDistance
+    public float         Min3DDistance
     {
         get
         {
@@ -600,7 +591,7 @@ public struct FModEventInstance
             }
         }
     }
-    public float        Max3DDistance
+    public float         Max3DDistance
     {
         get
         {
@@ -632,7 +623,6 @@ public struct FModEventInstance
     }
 
     private EventInstance Ins;
-    private GameObject   _AttachedGameObject;
 
     //==================================
     ////        Public Methods     ///// 
@@ -640,7 +630,6 @@ public struct FModEventInstance
     public FModEventInstance(EventInstance instance, Vector3 position=default) 
     { 
         Ins = instance;
-        _AttachedGameObject = null;
 
         bool is3D;
         FMOD.Studio.EventDescription desc;
@@ -650,6 +639,10 @@ public struct FModEventInstance
         {
             Ins.set3DAttributes(RuntimeUtils.To3DAttributes(position));
         }
+    }
+
+    public static explicit operator EventInstance(FModEventInstance ins) { 
+        return ins.Ins; 
     }
 
     public void Play(float volume = -1f, int startTimelinePosition = -1, string paramName = "", float paramValue = 0f)
@@ -676,9 +669,9 @@ public struct FModEventInstance
         Ins.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
     }
 
-    public void Destroy(bool destroyAtComplete=false)
+    public void Destroy(bool destroyAtStop=false)
     {
-        if(destroyAtComplete)
+        if (destroyAtStop)
         {
             Ins.release();
             return;
@@ -764,18 +757,14 @@ public struct FModEventInstance
             Ins.setProperty(FMOD.Studio.EVENT_PROPERTY.MAXIMUM_DISTANCE, maxDistance);
         }
     }
-
-    public void SetCallback(EVENT_CALLBACK callback, EVENT_CALLBACK_TYPE callbackmask = EVENT_CALLBACK_TYPE.ALL)
-    {
-        Ins.setCallback(callback, callbackmask);
-    }
-
 }
 #endif
 #endregion
 
 public interface IFModEventFadeComplete { void OnFModEventComplete(int fadeID, float goalVolume); }
+public interface IFModEventCallBack     { void OnFModEventCallBack(FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, IntPtr ptrParams); }
 public delegate void FModEventFadeCompleteNotify( int fadeID, float goalVolume );
+public delegate void FModEventCallBack( FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, IntPtr ptrParams );
 
 [AddComponentMenu("FMOD Studio/FModAudioManager")]
 public sealed class FModAudioManager : MonoBehaviour
@@ -787,6 +776,13 @@ public sealed class FModAudioManager : MonoBehaviour
 #if UNITY_EDITOR
     private sealed class FModAudioManagerWindow : EditorWindow
     {
+        private struct ParamFolderInfo
+        {
+            public string name;
+            public string id;
+            public string output;
+        }
+
         //=====================================
         ////            Fields           ///// 
         //====================================
@@ -794,16 +790,19 @@ public sealed class FModAudioManager : MonoBehaviour
         /*************************************
          *   Editor Data Path String...
          * **/
-        private const string _DataScriptPath     = "Assets/Plugins/FMOD/src/FMODAudioManagerDefine.cs";
-        private const string _EditorSettingsPath = "Assets/Plugins/FMOD/Resources/FModAudioEditorSettings.asset";
-        private const string _StudioSettingsPath = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
-        private const string _GroupFolderPath    = "Metadata/Group";
-        private const string _ScriptDefine       = "FMOD_Event_ENUM";
-        private const string _EditorVersion      = "v1.241116";
+        private const string _DataScriptPath           = "Assets/Plugins/FMOD/src/FMODAudioManagerDefine.cs";
+        private const string _EditorSettingsPath       = "Assets/Plugins/FMOD/Resources/FModAudioEditorSettings.asset";
+        private const string _StudioSettingsPath       = "Assets/Plugins/FMOD/Resources/FMODStudioSettings.asset";
+        private const string _GroupFolderPath          = "Metadata/Group";
+        private const string _PresetFolderPath         = "Metadata/ParameterPreset";
+        private const string _PresetFolderFolderPath   = "Metadata/ParameterPresetFolder";
+        private const string _ScriptDefine             = "FMOD_Event_ENUM";
+        private const string _EditorVersion            = "v1.241119";
 
-        private const string _EventRootPath      = "event:/";
-        private const string _BusRootPath        = "bus:/";
-        private const string _BankRootPath       = "bank:/";
+        private const string _EventRootPath            = "event:/";
+        private const string _BusRootPath              = "bus:/";
+        private const string _BankRootPath             = "bank:/";
+        private const string _ParamRootPath            = "param:/";
 
         /*************************************
          *  Texture Path and reference
@@ -1472,10 +1471,10 @@ public sealed class FModAudioManager : MonoBehaviour
                     EditorGUI.indentLevel++;
                     for (int i = 0; i < Count; i++)
                     {
+                        FModParamDesc desc = descs[i];
+
                         using (var horizontal = new EditorGUILayout.HorizontalScope())
                         {
-                            FModParamDesc desc = descs[i];
-
                             if (descs[i].isGlobal && _ParamGroupSelected != 0 
                                 || !descs[i].isGlobal && _ParamGroupSelected!=1) {
 
@@ -1506,6 +1505,18 @@ public sealed class FModAudioManager : MonoBehaviour
                             horizontal.Dispose();
                             labelStartIndex += desc.LableCount;
                         }
+
+                        /**파라미터 경로를 표시한다....**/
+                        using ( var vertical = new EditorGUILayout.VerticalScope()) {
+                            using (var horizontal = new EditorGUILayout.HorizontalScope())
+                            {
+                                EditorGUILayout.LabelField($"<color=#6487AA00>{desc.ParamName}</color>", _ContentTxtStyle, GUILayout.Width(140));
+                                EditorGUILayout.TextArea(desc.Path, _TxtFieldStyle, pathWidthOption);
+                            }
+                        }
+
+                        GUILayout.Space(5f);
+
                     }
                     EditorGUI.indentLevel--;
 
@@ -1666,8 +1677,6 @@ public sealed class FModAudioManager : MonoBehaviour
             #region Omit
             if (_EditorSettings == null) return;
 
-            Dictionary<String, int> dupMap = new Dictionary<String, int>();
-
             _builder.Clear();
             _builder.AppendLine("using UnityEngine;");
             _builder.AppendLine("");
@@ -1684,7 +1693,7 @@ public sealed class FModAudioManager : MonoBehaviour
             int Count = busLists.Count;
             for(int i=0; i<Count; i++)
             {
-                string busName  = GetUniqueName(RemoveInValidChar(busLists[i].Name), busLists[i].Path, dupMap);
+                string busName  = RemoveUnnecessaryChar(busLists[i].Path, _BusRootPath);
                 string comma    = (i == Count - 1 ? "" : ",");
                 _builder.AppendLine($"   {busName}={i+1}{comma}");
             }
@@ -1705,8 +1714,8 @@ public sealed class FModAudioManager : MonoBehaviour
             for (int i = 0; i < Count; i++)
             {
                 EditorBankRef bank = bankList[i];
-                string bankName = RemoveInValidChar(bank.Name);
-                string comma = (i == Count - 1 ? "" : ",");
+                string bankName    = RemoveInValidChar(bank.Name);
+                string comma       = (i == Count - 1 ? "" : ",");
                 _builder.AppendLine($"   {bankName}={i}{comma}");
             }
 
@@ -1730,7 +1739,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 if (desc.isGlobal == false) continue;
 
                 string comma    = (i == Count - 1 ? "" : ",");
-                string enumName = RemoveInValidChar(desc.ParamName);
+                string enumName = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
                 _builder.AppendLine($"   {enumName}={i}{comma}");
             }
 
@@ -1752,7 +1761,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 if (desc.isGlobal) continue;
 
                 string comma    = (i == Count - 1 ? "" : ",");
-                string enumName = RemoveInValidChar(desc.ParamName);
+                string enumName = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
                 _builder.AppendLine($"   {enumName}={i}{comma}");
             }
 
@@ -1772,7 +1781,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 FModParamDesc desc = paramDescs[i];
                 if(desc.LableCount<=0) continue;
 
-                string structName = RemoveInValidChar(desc.ParamName);
+                string structName = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
 
                 _builder.AppendLine($"    public struct {structName}");
                 _builder.AppendLine("    {");
@@ -1799,7 +1808,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 FModParamDesc desc = paramDescs[i];
                 if (desc.LableCount <= 0) continue;
 
-                string structName = RemoveInValidChar(desc.ParamName);
+                string structName = RemoveUnnecessaryChar(desc.Path, _ParamRootPath);
 
                 _builder.AppendLine($"    public struct {structName}");
                 _builder.AppendLine("    {");
@@ -1823,7 +1832,6 @@ public sealed class FModAudioManager : MonoBehaviour
             List<FModEventInfo>         infos         = _EditorSettings.EventRefs;
             Count = _EditorSettings.CategoryDescList.Count;
 
-            dupMap.Clear();
             _builder.AppendLine("public enum FModBGMEventType");
             _builder.AppendLine("{");
 
@@ -1843,10 +1851,11 @@ public sealed class FModAudioManager : MonoBehaviour
 
                     int    realIndex = (total + j);
                     string comma     = (++writeEventCount == _EditorSettings.EventGroups[0].TotalEvent ? "" : ",");
-                    string enumName  = infos[realIndex].Name;
                     string path      = infos[realIndex].Path;
+                    string enumName  = RemoveUnnecessaryChar(path, _EventRootPath, _EditorSettings.EventGroups[0].RootFolderName, "/");
+
                     if (CheckEventIsValid(realIndex, infos) == false) continue;
-                    _builder.AppendLine($"   {GetUniqueName(enumName, path, dupMap)}={realIndex}{comma}");
+                    _builder.AppendLine($"   {enumName}={realIndex}{comma}");
                 }
 
                 total += desc.EventCount;
@@ -1880,10 +1889,11 @@ public sealed class FModAudioManager : MonoBehaviour
                 {
                     int realIndex   = (total + j);
                     string comma    = (++writeEventCount == _EditorSettings.EventGroups[1].TotalEvent ? "" : ",");
-                    string enumName = infos[realIndex].Name;
                     string path     = infos[realIndex].Path;
+                    string enumName = RemoveUnnecessaryChar(path, _EventRootPath, _EditorSettings.EventGroups[1].RootFolderName, "/");
+
                     if (CheckEventIsValid(realIndex, infos) == false) continue;
-                    _builder.AppendLine($"   {GetUniqueName(enumName, path, dupMap)}={realIndex}{comma}");
+                    _builder.AppendLine($"   {enumName}={realIndex}{comma}");
                 }
 
                 total += desc.EventCount;
@@ -1918,10 +1928,11 @@ public sealed class FModAudioManager : MonoBehaviour
                 {
                     int realIndex   = (total + j);
                     string comma    = (++writeEventCount == _EditorSettings.EventGroups[2].TotalEvent ? "" : ",");
-                    string enumName = infos[realIndex].Name;
                     string path     = infos[realIndex].Path;
+                    string enumName = RemoveUnnecessaryChar(path, _EventRootPath);
+
                     if (CheckEventIsValid(realIndex, infos) == false) continue;
-                    _builder.AppendLine($"   {GetUniqueName(enumName, path, dupMap)}={realIndex}{comma}");
+                    _builder.AppendLine($"   {enumName}={realIndex}{comma}");
                 }
 
                 total += desc.EventCount;
@@ -2102,22 +2113,22 @@ public sealed class FModAudioManager : MonoBehaviour
             #endregion
         }
 
-        private string GetUniqueName(string inputString, string path, Dictionary<string, int> dupMap)
+        private string RemoveUnnecessaryChar(string inputString, params string[] removeFirstString)
         {
             #region Omit
-            if (dupMap == null) return inputString;
-
-            /**************************************************************
-             *    중복되는 값이 있다면, 경로를 기반으로 하는 이름을 반환한다...
-             * *****/
-            if (dupMap.ContainsKey(inputString))
+            //문자열 앞부분에서 불필요한 부분이 발견된다면 제거한다....
+            int len = removeFirstString.Length;
+            for (int i=0; i<len; i++)
             {
-                string prefix = RemoveInValidChar(path.Replace("event:", "").Replace("bus:", ""));
-                return (prefix.Substring(1, prefix.Length - 1) + "_" + inputString);
+                string cur = removeFirstString[i];
+
+                if (inputString.IndexOf(cur) == 0){
+                    int curLen  = cur.Length;
+                    inputString = inputString.Substring(curLen, inputString.Length-curLen);
+                }
             }
 
-            dupMap.Add(inputString, 1);
-            return inputString;
+            return RemoveInValidChar(inputString);
             #endregion
         }
 
@@ -2207,49 +2218,133 @@ public sealed class FModAudioManager : MonoBehaviour
             #endregion
         }
 
-        private void GetParamList(List<FModParamDesc> descList, List<string> lableList)
+        private void GetParamList(List<FModParamDesc> descList, List<string> labelList)
         {
             #region Omit
-            if (descList == null || lableList == null) return;
-            descList.Clear();
-            lableList.Clear();
+            if (descList == null || labelList == null) return;
 
-            List<EditorEventRef> EventRefs = FMODUnity.EventManager.Events;
+            /**********************************************************
+             *    파라미터 목록을 얻어오기 위한 초기화 과정을 진행한다...
+             * ******/
+            descList.Clear();
+            labelList.Clear();
             _EditorSettings.ParamCountList[0] = _EditorSettings.ParamCountList[1] = 0;
 
-            int eventCount = EventRefs.Count;
-            for(int i=0; i<eventCount; i++)
+            string   studiopath       = Application.dataPath.Replace("Assets", "") + _StudioPathProperty.stringValue;
+            string[] pathSplit        = studiopath.Split('/');
+            string   studioRootPath   = studiopath.Replace(pathSplit[pathSplit.Length - 1], "");
+            string   presetPath       = studioRootPath + _PresetFolderPath;
+            string   presetFolderPath = studioRootPath + _PresetFolderFolderPath;
+
+            DirectoryInfo pPath      = new DirectoryInfo(presetPath);
+            DirectoryInfo pfPath     = new DirectoryInfo(presetFolderPath);
+            XmlDocument   document   = new XmlDocument();
+            Dictionary<string, ParamFolderInfo> folderMap = new Dictionary<string, ParamFolderInfo>();
+            
+
+
+            /************************************************************
+             *     파라미터들의 정보와 부모 폴더 이름을 기록한다...
+             * ******/
+            try
             {
-                EditorEventRef eventRef = EventRefs[i];
-                List<EditorParamRef> paramRef = eventRef.Parameters;
-                int paramCount = paramRef.Count;
+                foreach(FileInfo file in pPath.GetFiles()) {
+                    if (!file.Exists) continue;
 
-                for(int j=0; j<paramCount; j++)
-                {
-                    EditorParamRef param = paramRef[j];
-                    int labelCount = (param.Labels == null ? 0 : param.Labels.Length);
+                    try { document.LoadXml(File.ReadAllText(file.FullName)); } catch { continue; }
+                    string nameNode        = document.SelectSingleNode("//object/property[@name='name']/value")?.InnerText;
+                    string outputNode      = document.SelectSingleNode("//object/relationship[@name='folder']/destination")?.InnerText;
+                    string typeNode        = document.SelectSingleNode("//object[@class='GameParameter']/property[@name='parameterType']/value")?.InnerText; 
+                    string minNode         = document.SelectSingleNode("//object[@class='GameParameter']/property[@name='minimum']/value")?.InnerText; //null이라면 0.
+                    string maxNode         = document.SelectSingleNode("//object[@class='GameParameter']/property[@name='maximum']/value")?.InnerText; //null이라면 0.
+                    string isGlobalNode    = document.SelectSingleNode("//object[@class='GameParameter']/property[@name='isGlobal']/value")?.InnerText; //null이라면 false.
+                    XmlNodeList labelNodes = document.SelectNodes("//object[@class='GameParameter']/property[@name='enumerationLabels']/value");
 
-                    if (GetParamIsAlreadyContain(param.Name, descList)) continue;
 
-                    descList.Add(new FModParamDesc()
+                    /**파라미터 값을 기록한다...*/
+                    FModParamDesc newDesc = new FModParamDesc()
                     {
-                        Max = param.Max,
-                        Min = param.Min,
-                        LableCount = labelCount,
-                        ParamName= param.Name,
-                        isGlobal=param.IsGlobal
-                    });
+                        ParamName        = (nameNode==null? "":nameNode),
+                        Path             = "",
+                        ParentFolderName = (outputNode==null? "":outputNode),
+                        isGlobal         = (isGlobalNode!=null),
+                        LableCount       = labelNodes.Count,
+                        Min              = (minNode==null? 0f:float.Parse(minNode)),
+                        Max              = (maxNode==null? 0f:float.Parse(maxNode)),
+                    };
 
-                    int CountIndex = (param.IsGlobal? 0:1);
-                    _EditorSettings.ParamCountList[CountIndex]++;
-
-                    //레이블이 존재한다면
-                    for(int k=0; k<labelCount; k++) {
-
-                        lableList.Add(param.Labels[k]);
+                    for (int i=0; i<newDesc.LableCount; i++){
+                        labelList.Add(labelNodes[i].InnerText);
                     }
+
+                    descList.Add(newDesc);
+                    _EditorSettings.ParamCountList[(newDesc.isGlobal ? 0 : 1)]++;
+                }
+            }
+            catch{
+
+                /**파일을 찾을 수 없었다면 스킵한다...**/
+                return;
+            }
+
+
+
+            /*****************************************************
+             *     파라미터들이 담긴 폴더 정보들을 모두 기록한다...
+             * *******/
+            try
+            {
+                foreach (FileInfo file in pfPath.GetFiles()){
+                    if (!file.Exists) continue;
+
+                    try { document.LoadXml(File.ReadAllText(file.FullName)); } catch { continue; }
+                    string idNode     = document.SelectSingleNode("//object/@id")?.InnerText;
+                    string nameNode   = document.SelectSingleNode("//object/property[@name='name']/value")?.InnerText;
+                    string outputNode = document.SelectSingleNode("//object/relationship[@name='folder']/destination")?.InnerText;
+
+                    /**폴더 정보들을 모두 기록한다...**/
+                    ParamFolderInfo newInfo = new ParamFolderInfo()
+                    {
+                        id     = idNode,
+                        name   = nameNode,
+                        output = outputNode,
+                    };
+
+                    /**루트폴더는 추가하지 않는다...**/
+                    if (outputNode == null) continue;
+                    folderMap.Add(idNode, newInfo);
                 }
 
+
+            }
+            catch{
+                /**파일 목록이 없다면 스킵한다....**/
+                return;
+            }
+
+
+
+            /********************************************************
+             *    파라미터 폴더들의 위치를 역추적해 경로를 기록한다...
+             * ******/
+            int paramCount = descList.Count;    
+            for(int i = 0; i<paramCount; i++){
+
+                FModParamDesc cur       = descList[i];
+                string        parent    = cur.ParentFolderName;
+                string        finalPath = "";
+
+
+                /**부모폴더가 존재하지 않을 때까지 거슬러 올라간다...*/
+                while (folderMap.ContainsKey(parent))
+                {
+                    finalPath = folderMap[parent].name + "/" + cur.Path;
+                    parent    = folderMap[parent].output;
+                }
+
+                /**마무리 작업...*/
+                cur.Path    = (_ParamRootPath + finalPath + cur.ParamName);
+                descList[i] = cur;
             }
 
             #endregion
@@ -2441,6 +2536,19 @@ public sealed class FModAudioManager : MonoBehaviour
         public bool  pendingKill;
     }
 
+    private struct CallBackInfo
+    {
+        public FModEventInstance   EventKey;
+        public EVENT_CALLBACK_TYPE EventType;
+        public IntPtr              EventParams;
+    }
+
+    private struct CallBackRegisterInfo
+    {
+        public FModEventCallBack Func;
+        public bool              UsedDestroyEvent;
+    }
+
     private enum FadeState
     {
         None,
@@ -2453,6 +2561,7 @@ public sealed class FModAudioManager : MonoBehaviour
     /////            Property           /////
     ///======================================
     public static bool  UsedBGMAutoFade     { get; set; } = false;
+    public static bool  IsInitialized       { get { return _Instance != null; } }
     public static float BGMAutoFadeDuration { get; set; } = 3f;
     public const  int   BGMAutoFadeID = -9324;
     public static FModEventFadeCompleteNotify OnEventFadeComplete;
@@ -2468,11 +2577,20 @@ public sealed class FModAudioManager : MonoBehaviour
 #endif
 
     private FMOD.Studio.Bus[] _BusList;
-
+ 
+    /**Fade fields....**/
     private FadeInfo[]   _fadeInfos = new FadeInfo[10];
     private int          _fadeCount = 0;
     private FadeState    _fadeState = FadeState.None;
 
+    /**event callback fields...**/
+    private static CallBackInfo[]        _callbackInfos = new CallBackInfo[10];
+    private static int                   _callbackCount = 0;
+    private static EVENT_CALLBACK        _cbDelegate    = new EVENT_CALLBACK(Callback_Internal);
+    private static Dictionary<FModEventInstance, CallBackRegisterInfo> _callBackTargets = new Dictionary<FModEventInstance, CallBackRegisterInfo>();
+
+
+    /**Audo bgm fields...**/
     private int     _NextBGMEvent         = -1;
     private float   _NextBGMVolume        = 0f;
     private float   _NextBGMStartPosRatio = 0;
@@ -2489,17 +2607,150 @@ public sealed class FModAudioManager : MonoBehaviour
     private static bool InstanceIsValid()
     {
         #region Omit
-#if UNITY_EDITOR
         if (_Instance==null)
         {
+#if UNITY_EDITOR
             Debug.LogError("To use the methods provided by FModAudioManager, there must be at least one GameObject in the scene with the FModAudioManager component attached.");
+            Debug.LogWarning("Alternatively, this error might occur if you try to use the methods before FModAudioManager has finished initializing.\nIf this error appears when calling a function in the Awake() magic method, try moving the code to the Start() magic method instead.");
+#endif
             return false;
         }
 
         return true;
-#endif
         #endregion
     }
+
+
+    /*************************************************
+     *      Callback Methods....
+     * *******/
+    [AOT.MonoPInvokeCallback(typeof(FMOD.Studio.EVENT_CALLBACK))]
+    private static FMOD.RESULT Callback_Internal(EVENT_CALLBACK_TYPE eventType, IntPtr instance, IntPtr ptrParams)
+    {
+        #region Omit
+        /****************************************************************
+         *    스레드 세이프를 위해, 콜백 정보를 Update에서 처리하도록 한다...
+         * *****/
+        lock(_cbDelegate)
+        {
+            bool isDestroyedEvent     = (eventType == EVENT_CALLBACK_TYPE.DESTROYED);
+            FModEventInstance target  = new FModEventInstance(new EventInstance(instance));
+            CallBackRegisterInfo info = _callBackTargets[target];
+
+
+            /********************************************
+             *    이벤트 호출을 예약한다....
+             * *****/
+            CallBackInfo newInfo = new CallBackInfo()
+            {
+                EventKey    = target,
+                EventParams = ptrParams,
+                EventType   = eventType
+            };
+
+            /**콜백 정보를 담을 배열이 가득찼다면 배로 할당한다...*/
+            int len = _callbackInfos.Length;
+            if (len >= _callbackCount)
+            {
+                CallBackInfo[] newArr = new CallBackInfo[len * 2];
+                Array.Copy(_callbackInfos, newArr, len);
+                _callbackInfos = newArr;
+            }
+
+            _callbackInfos[_callbackCount++] = newInfo;
+        }
+
+        return FMOD.RESULT.OK;
+        #endregion
+    }
+
+    private void CallbackProgress_internal()
+    {
+        #region Omit
+        /**********************************************
+         *   모든 콜백 정보들을 처리한다...
+         * *******/
+        for (int i=0; i<_callbackCount; i++){
+
+            ref CallBackInfo     info         = ref _callbackInfos[i];
+            EventInstance        ins          = (EventInstance)info.EventKey;
+            CallBackRegisterInfo registerInfo = _callBackTargets[info.EventKey];
+
+            /**이벤트가 파괴될 경우, 관리 대상에서 제외시킨다...**/
+            if ( info.EventType==EVENT_CALLBACK_TYPE.DESTROYED)
+            {
+                _callBackTargets.Remove(info.EventKey);
+                if (registerInfo.UsedDestroyEvent == false) continue;
+            }
+
+            registerInfo.Func?.Invoke(info.EventType, info.EventKey, info.EventParams);
+        }
+
+        _callbackCount = 0;
+        #endregion
+    }
+
+    public static void SetEventCallback(FModEventInstance eventTarget, EVENT_CALLBACK_TYPE eventType, FModEventCallBack callbackFunc)
+    {
+        #region Omit
+        if (!InstanceIsValid() || !eventTarget.IsValid) return;
+
+        bool usedDestroyEvent  = ((int)(eventType & EVENT_CALLBACK_TYPE.DESTROYED))>0;
+        EventInstance ins      = (EventInstance)eventTarget;
+        eventType             |= EVENT_CALLBACK_TYPE.DESTROYED;
+
+        /**등록할 콜백정보를 초기화한다....*/
+        CallBackRegisterInfo newInfo = new CallBackRegisterInfo()
+        {
+            Func             = callbackFunc,
+            UsedDestroyEvent = usedDestroyEvent
+        };
+
+        /**키가 이미 존재한다면 값을 변경한다....**/
+        if (_callBackTargets.ContainsKey(eventTarget))
+        {
+            _callBackTargets[eventTarget] = newInfo;
+        }
+
+        /**키가 존재하지 않다면 새롭게 추가한다...*/
+        else
+        {
+            _callBackTargets.Add(eventTarget, newInfo);
+        }
+
+        ins.setCallback(_cbDelegate, eventType);
+        #endregion
+    }
+
+    public static void SetBGMEventCallback(EVENT_CALLBACK_TYPE eventType, FModEventCallBack callbackFunc)
+    {
+        if (!InstanceIsValid()) return;
+        SetEventCallback(_Instance._BGMIns, eventType, callbackFunc);
+    }
+
+    public static void ClearEventCallback(FModEventInstance eventTarget)
+    {
+        #region Omit
+        if (!InstanceIsValid() || !eventTarget.IsValid) return;
+
+        _callBackTargets.Remove(eventTarget);
+
+        EventInstance ins = (EventInstance)eventTarget;
+        ins.setCallback(null);
+        #endregion
+    }
+
+    public static void ClearBGMEventCallback()
+    {
+        if (!InstanceIsValid()) return;
+        ClearEventCallback(_Instance._BGMIns);
+    }
+
+    public static FMOD.Studio.TIMELINE_MARKER_PROPERTIES GetCallBackMarkerParams(IntPtr ptrParams)
+    {
+        return (FMOD.Studio.TIMELINE_MARKER_PROPERTIES)System.Runtime.InteropServices.Marshal.PtrToStructure(ptrParams, typeof(FMOD.Studio.TIMELINE_MARKER_PROPERTIES));
+    }
+
 
 
 #if FMOD_Event_ENUM
@@ -3042,11 +3293,11 @@ public sealed class FModAudioManager : MonoBehaviour
         #endregion
     }
 
-    public static void DestroyBGM(bool destroyAtComplete = false)
+    public static void DestroyBGM(bool destroyAtStop = false)
     {
         #region Omit
         if (!InstanceIsValid() || _Instance._BGMIns.IsValid == false) return;
-        _Instance._BGMIns.Destroy(destroyAtComplete);
+        _Instance._BGMIns.Destroy(destroyAtStop);
         #endregion
     }
 
@@ -3176,14 +3427,6 @@ public sealed class FModAudioManager : MonoBehaviour
         #region Omit
         if (!InstanceIsValid() || _Instance._BGMIns.IsValid == false) return 0f;
         return _Instance._BGMIns.TimelinePositionRatio;
-        #endregion
-    }
-
-    public static void SetBGMCallback(EVENT_CALLBACK callback, EVENT_CALLBACK_TYPE callbackmask = EVENT_CALLBACK_TYPE.ALL)
-    {
-        #region Omit
-        if (!InstanceIsValid() || _Instance._BGMIns.IsValid == false) return;
-        _Instance._BGMIns.SetCallback(callback, callbackmask);
         #endregion
     }
 
@@ -3424,13 +3667,23 @@ public sealed class FModAudioManager : MonoBehaviour
         #region Omit
         if (_Instance == null)
         {
+            /*******************************************
+             *     초기화 과정을 적용한다....
+             * *****/
             _Instance = this;
             DontDestroyOnLoad(gameObject);
+
+            _callbackCount = 0;
+            _callbackInfos = new CallBackInfo[10];
+            _callBackTargets.Clear();
 
             #if FMOD_Event_ENUM
             OnEventFadeComplete += BGMFadeComplete;
 
-            //모든 버스 목록을 얻어온다.
+
+            /*******************************************
+             *    모든 버스 목록들을 얻어온다.....
+             * *****/
             int busCount = FModReferenceList.BusPaths.Length;
             _BusList = new Bus[busCount];
 
@@ -3463,9 +3716,20 @@ public sealed class FModAudioManager : MonoBehaviour
     private void Update()
     {
         #region Omit
-        /**처리할 페이드정보가 있는가..?*/
-        if (_fadeCount > 0)
+        /****************************************
+         *   처리할 페이드 정보가 있을 경우...
+         * *****/
+        if (_fadeCount > 0) { 
             FadeProgress_internal();
+        }
+
+
+        /***************************************
+         *   처리할 콜백 정보가 있을 경우....
+         * *****/
+        if (_callbackCount > 0){
+            CallbackProgress_internal();
+        }
         #endregion
     }
 

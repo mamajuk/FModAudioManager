@@ -17,10 +17,12 @@ public struct NPData
 public struct FModParamDesc
 {
     public string ParamName;
-    public int LableCount;
-    public bool isGlobal;
-    public float Min;
-    public float Max;
+    public string Path;
+    public string ParentFolderName;
+    public int    LableCount;
+    public bool   isGlobal;
+    public float  Min;
+    public float  Max;
 }
 
 [System.Serializable]
