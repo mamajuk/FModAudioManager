@@ -18,7 +18,6 @@ using UnityEditor.AnimatedValues;
 #endif
 
 #region Define
-#if FMOD_Event_ENUM
 
 [System.Serializable]
 public struct FModParameterReference
@@ -163,6 +162,7 @@ public struct FModParameterReference
         private void GUI_ShowParamType( ref Rect header, float space = 3f )
         {
             #region Omit
+#if FMOD_Event_ENUM
             Rect rect = header;
             //rect.x += 20f;
 
@@ -221,6 +221,7 @@ public struct FModParameterReference
 
 
             header.y += (20f + space);
+#endif
             #endregion
         }
 
@@ -354,6 +355,7 @@ public struct FModParameterReference
     //======================================
     /////        Public methods        /////
     //======================================
+#if FMOD_Event_ENUM
     public FModParameterReference(FModLocalParamType paramType, float value = 0f)
     {
         #region Omit
@@ -395,6 +397,7 @@ public struct FModParameterReference
         _isGlobal   = true;
         #endregion
     }
+#endif
 
     public void ClearParameter()
     {
@@ -404,7 +407,6 @@ public struct FModParameterReference
         _isGlobal   = false;
         #endregion
     }
-
 }
 
 public struct FModEventInstance
@@ -682,6 +684,7 @@ public struct FModEventInstance
         Ins.clearHandle();
     }
 
+#if FMOD_Event_ENUM
     public void SetParameter(FModGlobalParamType paramType, float paramValue)
     {
         string paramName = FModReferenceList.Params[(int)paramType];
@@ -695,9 +698,11 @@ public struct FModEventInstance
         string paramName = FModReferenceList.Params[(int)paramType];
         Ins.setParameterByName(paramName, paramValue);
     }
+#endif
 
     public void SetParameter(FModParameterReference paramRef)
     {
+#if FMOD_Event_ENUM
         if (paramRef.IsValid == false) return;
         string paramName = FModReferenceList.Params[paramRef.ParamType];
 
@@ -711,6 +716,7 @@ public struct FModEventInstance
 
         /**로컬 파라미터일 경우...*/
         Ins.setParameterByName( paramName, paramRef.ParamValue);
+#endif
     }
 
     public void SetParameter(string paramName, float value)
@@ -718,6 +724,7 @@ public struct FModEventInstance
         Ins.setParameterByName(paramName, value);
     }
 
+#if FMOD_Event_ENUM
     public float GetParameter(FModGlobalParamType paramType)
     {
         string paramName = FModReferenceList.Params[(int)paramType];
@@ -736,6 +743,7 @@ public struct FModEventInstance
 
         return value;
     }
+#endif
 
     public float GetParameter(string paramName) 
     {
@@ -758,7 +766,6 @@ public struct FModEventInstance
         }
     }
 }
-#endif
 #endregion
 
 public interface IFModEventFadeComplete { void OnFModEventComplete(int fadeID, float goalVolume); }
@@ -2724,8 +2731,10 @@ public sealed class FModAudioManager : MonoBehaviour
 
     public static void SetBGMEventCallback(EVENT_CALLBACK_TYPE eventType, FModEventCallBack callbackFunc)
     {
+#if FMOD_Event_ENUM
         if (!InstanceIsValid()) return;
         SetEventCallback(_Instance._BGMIns, eventType, callbackFunc);
+#endif
     }
 
     public static void ClearEventCallback(FModEventInstance eventTarget)
@@ -2742,8 +2751,10 @@ public sealed class FModAudioManager : MonoBehaviour
 
     public static void ClearBGMEventCallback()
     {
+#if FMOD_Event_ENUM
         if (!InstanceIsValid()) return;
         ClearEventCallback(_Instance._BGMIns);
+#endif
     }
 
     public static FMOD.Studio.TIMELINE_MARKER_PROPERTIES GetCallBackMarkerParams(IntPtr ptrParams)
