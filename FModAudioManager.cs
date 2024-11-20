@@ -2849,14 +2849,14 @@ public sealed class FModAudioManager : MonoBehaviour
         #endregion
     }
 
-    public static void SetEventCallback(FModEventInstance eventTarget, EVENT_CALLBACK_TYPE eventType, FModEventCallBack callbackFunc)
+    public static void SetEventCallback(FModEventInstance eventTarget, EVENT_CALLBACK_TYPE eventTypeMask, FModEventCallBack callbackFunc)
     {
         #region Omit
         if (!InstanceIsValid() || !eventTarget.IsValid) return;
 
-        bool usedDestroyEvent  = ((int)(eventType & EVENT_CALLBACK_TYPE.DESTROYED))>0;
+        bool usedDestroyEvent  = ((int)(eventTypeMask & EVENT_CALLBACK_TYPE.DESTROYED))>0;
         EventInstance ins      = (EventInstance)eventTarget;
-        eventType             |= EVENT_CALLBACK_TYPE.DESTROYED;
+        eventTypeMask         |= EVENT_CALLBACK_TYPE.DESTROYED;
 
         /**등록할 콜백정보를 초기화한다....*/
         CallBackRegisterInfo newInfo = new CallBackRegisterInfo()
@@ -2877,15 +2877,15 @@ public sealed class FModAudioManager : MonoBehaviour
             _callBackTargets.Add(eventTarget, newInfo);
         }
 
-        ins.setCallback(_cbDelegate, eventType);
+        ins.setCallback(_cbDelegate, eventTypeMask);
         #endregion
     }
 
-    public static void SetBGMEventCallback(EVENT_CALLBACK_TYPE eventType, FModEventCallBack callbackFunc)
+    public static void SetBGMEventCallback(EVENT_CALLBACK_TYPE eventTypeMask, FModEventCallBack callbackFunc)
     {
 #if FMOD_Event_ENUM
         if (!InstanceIsValid()) return;
-        SetEventCallback(_Instance._BGMIns, eventType, callbackFunc);
+        SetEventCallback(_Instance._BGMIns, eventTypeMask, callbackFunc);
 #endif
     }
 
