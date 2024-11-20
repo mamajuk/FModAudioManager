@@ -2655,6 +2655,7 @@ public sealed class FModAudioManager : MonoBehaviour
     private static FMOD.RESULT Callback_Internal(EVENT_CALLBACK_TYPE eventType, IntPtr instance, IntPtr ptrParams)
     {
         #region Omit
+
         /****************************************************************
          *    스레드 세이프를 위해, 콜백 정보를 Update에서 처리하도록 한다...
          * *****/
@@ -2671,11 +2672,12 @@ public sealed class FModAudioManager : MonoBehaviour
 
             #region PARAMETERS
             /**MARKER 이벤트일 경우.....**/
-            if (eventType == EVENT_CALLBACK_TYPE.TIMELINE_MARKER){
+            if (eventType == EVENT_CALLBACK_TYPE.TIMELINE_MARKER)
+            {
                 var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<TIMELINE_MARKER_PROPERTIES>(ptrParams);
                 TIMELINE_MARKER_PROPERTIESEX newEx = new TIMELINE_MARKER_PROPERTIESEX()
                 {
-                    MarkerName       = parameters.name,
+                    MarkerName = parameters.name,
                     TimelinePosition = parameters.position
                 };
 
@@ -2683,32 +2685,37 @@ public sealed class FModAudioManager : MonoBehaviour
             }
 
             /**TIMELINE BEAT 이벤트일 경우...**/
-            else if (eventType==EVENT_CALLBACK_TYPE.TIMELINE_BEAT){
+            else if (eventType == EVENT_CALLBACK_TYPE.TIMELINE_BEAT)
+            {
                 var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<TIMELINE_BEAT_PROPERTIES>(ptrParams);
                 PasteStructByte(parameters);
             }
 
             /**PROGRAMMER SOUND 관련 이벤트일 경우...*/
-            else if (eventType==EVENT_CALLBACK_TYPE.CREATE_PROGRAMMER_SOUND || eventType==EVENT_CALLBACK_TYPE.DESTROY_PROGRAMMER_SOUND){
+            else if (eventType == EVENT_CALLBACK_TYPE.CREATE_PROGRAMMER_SOUND || eventType == EVENT_CALLBACK_TYPE.DESTROY_PROGRAMMER_SOUND)
+            {
                 var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<PROGRAMMER_SOUND_PROPERTIES>(ptrParams);
                 PasteStructByte(parameters);
             }
 
             /**PLUGIN INSTANCE 관련 이벤트일 경우...**/
-            else if(eventType==EVENT_CALLBACK_TYPE.PLUGIN_CREATED || eventType==EVENT_CALLBACK_TYPE.PLUGIN_DESTROYED){
+            else if (eventType == EVENT_CALLBACK_TYPE.PLUGIN_CREATED || eventType == EVENT_CALLBACK_TYPE.PLUGIN_DESTROYED)
+            {
                 var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<PLUGIN_INSTANCE_PROPERTIES>(ptrParams);
                 PasteStructByte(parameters);
             }
 
             /**SOUND 관련 이벤트일 경우...**/
-            else if(eventType==EVENT_CALLBACK_TYPE.SOUND_PLAYED || eventType==EVENT_CALLBACK_TYPE.SOUND_STOPPED){
-                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<Sound>(ptrParams);
+            else if (eventType == EVENT_CALLBACK_TYPE.SOUND_PLAYED || eventType == EVENT_CALLBACK_TYPE.SOUND_STOPPED)
+            {
+                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<IntPtr>(ptrParams);
                 PasteStructByte(parameter);
             }
 
             /**시작 관련 이벤트일 경우...**/
-            else if(eventType==EVENT_CALLBACK_TYPE.START_EVENT_COMMAND){
-                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<EventInstance>(ptrParams);
+            else if (eventType == EVENT_CALLBACK_TYPE.START_EVENT_COMMAND)
+            {
+                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<IntPtr>(ptrParams);
                 PasteStructByte(parameter);
             }
 
@@ -2720,14 +2727,14 @@ public sealed class FModAudioManager : MonoBehaviour
              * *****/
             CallBackInfo newInfo = new CallBackInfo()
             {
-                EventKey    = target,
-                ParamKey    = _callbackCount,
-                EventType   = eventType
+                EventKey = target,
+                ParamKey = _callbackCount,
+                EventType = eventType
             };
 
             /**콜백 정보를 담을 배열이 가득찼다면 배로 할당한다...*/
             int len = _callbackInfos.Length;
-            if (len >= _callbackCount)
+            if (len <= _callbackCount)
             {
                 CallBackInfo[] newArr = new CallBackInfo[len * 2];
                 Array.Copy(_callbackInfos, newArr, len);
@@ -2738,6 +2745,42 @@ public sealed class FModAudioManager : MonoBehaviour
         }
 
         return FMOD.RESULT.OK;
+        #endregion
+    }
+
+    private void CallbackProgress_internal()
+    {
+        #region Omit
+        /**********************************************
+         *   모든 콜백 정보들을 처리한다...
+         * *******/
+        lock (_cbDelegate)
+        {
+            try
+            {
+                for (int i = 0; i < _callbackCount; i++){
+
+                    ref CallBackInfo     info         = ref _callbackInfos[i];
+                    EventInstance        ins          = (EventInstance)info.EventKey;
+                    CallBackRegisterInfo registerInfo = _callBackTargets[info.EventKey];
+
+                    /**이벤트가 파괴될 경우, 관리 대상에서 제외시킨다...**/
+                    if (info.EventType == EVENT_CALLBACK_TYPE.DESTROYED)
+                    {
+                        _callBackTargets.Remove(info.EventKey);
+                        if (registerInfo.UsedDestroyEvent == false) continue;
+                    }
+
+                    registerInfo.Func?.Invoke(info.EventType, info.EventKey, info.ParamKey);
+                }
+            }
+            catch { }
+
+            _callbackCount = 0;
+            _usedBytes     = 0;
+            _paramDescs.Clear();
+        }
+
         #endregion
     }
 
@@ -2802,42 +2845,6 @@ public sealed class FModAudioManager : MonoBehaviour
 
         Marshal.FreeHGlobal(ptr);
         return ret;
-
-        #endregion
-    }
-
-    private void CallbackProgress_internal()
-    {
-        #region Omit
-        /**********************************************
-         *   모든 콜백 정보들을 처리한다...
-         * *******/
-        lock(_cbDelegate)
-        {
-            try
-            {
-                for (int i = 0; i < _callbackCount; i++){
-
-                    ref CallBackInfo info = ref _callbackInfos[i];
-                    EventInstance ins = (EventInstance)info.EventKey;
-                    CallBackRegisterInfo registerInfo = _callBackTargets[info.EventKey];
-
-                    /**이벤트가 파괴될 경우, 관리 대상에서 제외시킨다...**/
-                    if (info.EventType == EVENT_CALLBACK_TYPE.DESTROYED)
-                    {
-                        _callBackTargets.Remove(info.EventKey);
-                        if (registerInfo.UsedDestroyEvent == false) continue;
-                    }
-
-                    registerInfo.Func?.Invoke(info.EventType, info.EventKey, info.ParamKey);
-                }
-            }
-            catch{ }
-
-            _callbackCount = 0;
-            _usedBytes     = 0;
-            _paramDescs.Clear();
-        }
 
         #endregion
     }
@@ -3866,6 +3873,7 @@ public sealed class FModAudioManager : MonoBehaviour
             DontDestroyOnLoad(gameObject);
 
             _callbackCount = 0;
+            _usedBytes     = 0;
             _callbackInfos = new CallBackInfo[10];
             _callBackTargets.Clear();
             _paramDescs.Clear();
