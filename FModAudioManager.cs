@@ -11,6 +11,7 @@ using UnityEngine.Events;
 using System.Xml;
 using System.Runtime.InteropServices;
 using Unity.VisualScripting;
+using FMOD;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -647,12 +648,12 @@ public struct FModEventInstance
         return ins.Ins; 
     }
 
-    public void Play(float volume = -1f, int startTimelinePosition = -1, string paramName = "", float paramValue = 0f)
+    public void Play(float volume = -1f, float startTimelinePositionRatio = 0f, string paramName = "", float paramValue = 0f)
     {
         if(volume>=0) Ins.setVolume(volume);
-        if (startTimelinePosition >= 0) Ins.setTimelinePosition(startTimelinePosition);
         if(paramName!="") Ins.setParameterByName(paramName, paramValue);
 
+        TimelinePositionRatio = startTimelinePositionRatio;
         Ins.start();
     }
 
@@ -766,12 +767,21 @@ public struct FModEventInstance
         }
     }
 }
+
+[StructLayout(LayoutKind.Sequential)]
+public struct TIMELINE_MARKER_PROPERTIESEX
+{
+    public string MarkerName;
+    public int    TimelinePosition;
+    public float  TimelinePositionRatio;
+}
+
 #endregion
 
 public interface IFModEventFadeComplete { void OnFModEventComplete(int fadeID, float goalVolume); }
-public interface IFModEventCallBack     { void OnFModEventCallBack(FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, IntPtr ptrParams); }
+public interface IFModEventCallBack     { void OnFModEventCallBack(FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, int paramKey); }
 public delegate void FModEventFadeCompleteNotify( int fadeID, float goalVolume );
-public delegate void FModEventCallBack( FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, IntPtr ptrParams );
+public delegate void FModEventCallBack( FMOD.Studio.EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, int paramKey );
 
 [AddComponentMenu("FMOD Studio/FModAudioManager")]
 public sealed class FModAudioManager : MonoBehaviour
@@ -804,7 +814,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _PresetFolderPath         = "Metadata/ParameterPreset";
         private const string _PresetFolderFolderPath   = "Metadata/ParameterPresetFolder";
         private const string _ScriptDefine             = "FMOD_Event_ENUM";
-        private const string _EditorVersion            = "v1.241119";
+        private const string _EditorVersion            = "v1.241120";
 
         private const string _EventRootPath            = "event:/";
         private const string _BusRootPath              = "bus:/";
@@ -2545,13 +2555,19 @@ public sealed class FModAudioManager : MonoBehaviour
     {
         public FModEventInstance   EventKey;
         public EVENT_CALLBACK_TYPE EventType;
-        public IntPtr              EventParams;
+        public int                 ParamKey;
     }
 
     private struct CallBackRegisterInfo
     {
         public FModEventCallBack Func;
         public bool              UsedDestroyEvent;
+    }
+
+    private struct ParamDesc
+    {
+        public int StartIdx;
+        public int Length;
     }
 
     private enum FadeState
@@ -2588,11 +2604,17 @@ public sealed class FModAudioManager : MonoBehaviour
     private int          _fadeCount = 0;
     private FadeState    _fadeState = FadeState.None;
 
+
     /**event callback fields...**/
-    private static CallBackInfo[]        _callbackInfos = new CallBackInfo[10];
-    private static int                   _callbackCount = 0;
-    private static EVENT_CALLBACK        _cbDelegate    = new EVENT_CALLBACK(Callback_Internal);
+    private static EVENT_CALLBACK _cbDelegate = new EVENT_CALLBACK(Callback_Internal);
     private static Dictionary<FModEventInstance, CallBackRegisterInfo> _callBackTargets = new Dictionary<FModEventInstance, CallBackRegisterInfo>();
+
+    private static CallBackInfo[] _callbackInfos = new CallBackInfo[10];
+    private static int            _callbackCount = 0;
+
+    private static List<ParamDesc>  _paramDescs = new List<ParamDesc>();
+    private static byte[]           _paramBytes = new byte[10];
+    private static int              _usedBytes  = 0;
 
 
     /**Audo bgm fields...**/
@@ -2615,8 +2637,8 @@ public sealed class FModAudioManager : MonoBehaviour
         if (_Instance==null)
         {
 #if UNITY_EDITOR
-            Debug.LogError("To use the methods provided by FModAudioManager, there must be at least one GameObject in the scene with the FModAudioManager component attached.");
-            Debug.LogWarning("Alternatively, this error might occur if you try to use the methods before FModAudioManager has finished initializing.\nIf this error appears when calling a function in the Awake() magic method, try moving the code to the Start() magic method instead.");
+            UnityEngine.Debug.LogError("To use the methods provided by FModAudioManager, there must be at least one GameObject in the scene with the FModAudioManager component attached.");
+            UnityEngine.Debug.LogWarning("Alternatively, this error might occur if you try to use the methods before FModAudioManager has finished initializing.\nIf this error appears when calling a function in the Awake() magic method, try moving the code to the Start() magic method instead.");
 #endif
             return false;
         }
@@ -2643,13 +2665,63 @@ public sealed class FModAudioManager : MonoBehaviour
             CallBackRegisterInfo info = _callBackTargets[target];
 
 
-            /********************************************
+            /*********************************************************
+             *    이벤트에 따른 파라미터 구조체 정보를 기록한다...
+             * *****/
+
+            #region PARAMETERS
+            /**MARKER 이벤트일 경우.....**/
+            if (eventType == EVENT_CALLBACK_TYPE.TIMELINE_MARKER){
+                var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<TIMELINE_MARKER_PROPERTIES>(ptrParams);
+                TIMELINE_MARKER_PROPERTIESEX newEx = new TIMELINE_MARKER_PROPERTIESEX()
+                {
+                    MarkerName       = parameters.name,
+                    TimelinePosition = parameters.position
+                };
+
+                PasteStructByte(newEx);
+            }
+
+            /**TIMELINE BEAT 이벤트일 경우...**/
+            else if (eventType==EVENT_CALLBACK_TYPE.TIMELINE_BEAT){
+                var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<TIMELINE_BEAT_PROPERTIES>(ptrParams);
+                PasteStructByte(parameters);
+            }
+
+            /**PROGRAMMER SOUND 관련 이벤트일 경우...*/
+            else if (eventType==EVENT_CALLBACK_TYPE.CREATE_PROGRAMMER_SOUND || eventType==EVENT_CALLBACK_TYPE.DESTROY_PROGRAMMER_SOUND){
+                var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<PROGRAMMER_SOUND_PROPERTIES>(ptrParams);
+                PasteStructByte(parameters);
+            }
+
+            /**PLUGIN INSTANCE 관련 이벤트일 경우...**/
+            else if(eventType==EVENT_CALLBACK_TYPE.PLUGIN_CREATED || eventType==EVENT_CALLBACK_TYPE.PLUGIN_DESTROYED){
+                var parameters = System.Runtime.InteropServices.Marshal.PtrToStructure<PLUGIN_INSTANCE_PROPERTIES>(ptrParams);
+                PasteStructByte(parameters);
+            }
+
+            /**SOUND 관련 이벤트일 경우...**/
+            else if(eventType==EVENT_CALLBACK_TYPE.SOUND_PLAYED || eventType==EVENT_CALLBACK_TYPE.SOUND_STOPPED){
+                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<Sound>(ptrParams);
+                PasteStructByte(parameter);
+            }
+
+            /**시작 관련 이벤트일 경우...**/
+            else if(eventType==EVENT_CALLBACK_TYPE.START_EVENT_COMMAND){
+                var parameter = System.Runtime.InteropServices.Marshal.PtrToStructure<EventInstance>(ptrParams);
+                PasteStructByte(parameter);
+            }
+
+            #endregion
+
+
+            /**********************************************************
              *    이벤트 호출을 예약한다....
              * *****/
             CallBackInfo newInfo = new CallBackInfo()
             {
                 EventKey    = target,
-                EventParams = ptrParams,
+                ParamKey    = _callbackCount,
                 EventType   = eventType
             };
 
@@ -2669,29 +2741,104 @@ public sealed class FModAudioManager : MonoBehaviour
         #endregion
     }
 
+    private static void PasteStructByte<T>(T copyTarget)
+    {
+        #region Omit
+        int size       = Marshal.SizeOf(typeof(T));
+        int Targetlen  = _paramBytes.Length;
+
+        /***********************************************
+         *    할당할 공간이 부족하면 제거한다....
+         * *****/
+        if(Targetlen < (_usedBytes + size))
+        {
+            byte[] newArr = new byte[(Targetlen*2)+size];
+            Array.Copy(_paramBytes, newArr, _usedBytes);
+            _paramBytes = newArr;
+        }
+
+
+        /************************************************
+         *    byte 배열에 구조체를 할당한다...
+         * ******/
+        IntPtr ptr = Marshal.AllocHGlobal(size);
+
+        Marshal.StructureToPtr(copyTarget, ptr, false);
+        Marshal.Copy(ptr, _paramBytes, _usedBytes, size);
+        Marshal.FreeHGlobal(ptr);
+
+        _paramDescs.Add(new ParamDesc()
+        {
+             Length   = size,
+             StartIdx = _usedBytes
+        });
+        _usedBytes += size;
+        #endregion
+    }
+
+    private static bool ParamKeyIsValid(int paramKey)
+    {
+        return (paramKey >=0 || paramKey < _paramDescs.Count);
+    }
+
+    private static T GetCallbackParam_internal<T>(int paramKey) where T : struct
+    {
+        #region Omit
+
+        /**paramKey가 유효하지 않다면 탈출한다....**/
+        if(!ParamKeyIsValid(paramKey)){
+            return new T();
+        }
+
+        /***************************************************************
+         *    byte 배열에서 구조체에 대한 메모리를 복사해 구조체를 만든다...
+         * ******/
+        ParamDesc desc = _paramDescs[paramKey];
+        IntPtr    ptr  = Marshal.AllocHGlobal(desc.Length);
+        T         ret;
+
+        Marshal.Copy(_paramBytes, desc.StartIdx, ptr, desc.Length);
+        ret = Marshal.PtrToStructure<T>(ptr);
+
+        Marshal.FreeHGlobal(ptr);
+        return ret;
+
+        #endregion
+    }
+
     private void CallbackProgress_internal()
     {
         #region Omit
         /**********************************************
          *   모든 콜백 정보들을 처리한다...
          * *******/
-        for (int i=0; i<_callbackCount; i++){
-
-            ref CallBackInfo     info         = ref _callbackInfos[i];
-            EventInstance        ins          = (EventInstance)info.EventKey;
-            CallBackRegisterInfo registerInfo = _callBackTargets[info.EventKey];
-
-            /**이벤트가 파괴될 경우, 관리 대상에서 제외시킨다...**/
-            if ( info.EventType==EVENT_CALLBACK_TYPE.DESTROYED)
+        lock(_cbDelegate)
+        {
+            try
             {
-                _callBackTargets.Remove(info.EventKey);
-                if (registerInfo.UsedDestroyEvent == false) continue;
-            }
+                for (int i = 0; i < _callbackCount; i++){
 
-            registerInfo.Func?.Invoke(info.EventType, info.EventKey, info.EventParams);
+                    ref CallBackInfo info = ref _callbackInfos[i];
+                    EventInstance ins = (EventInstance)info.EventKey;
+                    CallBackRegisterInfo registerInfo = _callBackTargets[info.EventKey];
+
+                    /**이벤트가 파괴될 경우, 관리 대상에서 제외시킨다...**/
+                    if (info.EventType == EVENT_CALLBACK_TYPE.DESTROYED)
+                    {
+                        _callBackTargets.Remove(info.EventKey);
+                        if (registerInfo.UsedDestroyEvent == false) continue;
+                    }
+
+                    registerInfo.Func?.Invoke(info.EventType, info.EventKey, info.ParamKey);
+                }
+            }
+            catch{ }
+
+            _callbackCount = 0;
+            _usedBytes     = 0;
+            _paramDescs.Clear();
         }
 
-        _callbackCount = 0;
         #endregion
     }
 
@@ -2755,9 +2902,45 @@ public sealed class FModAudioManager : MonoBehaviour
 #endif
     }
 
-    public static FMOD.Studio.TIMELINE_MARKER_PROPERTIES GetCallBackMarkerParams(IntPtr ptrParams)
+    public static TIMELINE_MARKER_PROPERTIESEX GetCallbackParams_Marker(int parameterKey)
     {
-        return (FMOD.Studio.TIMELINE_MARKER_PROPERTIES)System.Runtime.InteropServices.Marshal.PtrToStructure(ptrParams, typeof(FMOD.Studio.TIMELINE_MARKER_PROPERTIES));
+        TIMELINE_MARKER_PROPERTIESEX ret = GetCallbackParam_internal<TIMELINE_MARKER_PROPERTIESEX>(parameterKey);
+
+        if(ParamKeyIsValid(parameterKey)){
+            ret.TimelinePositionRatio = ((float)ret.TimelinePosition / (float)_callbackInfos[parameterKey].EventKey.Length);
+        }
+
+        return ret;
+    }
+
+    public static TIMELINE_BEAT_PROPERTIES GetCallbackParams_Beat(int parameterKey)
+    {
+        return GetCallbackParam_internal<TIMELINE_BEAT_PROPERTIES>(parameterKey);
+    }
+
+    public static PROGRAMMER_SOUND_PROPERTIES GetCallbackParams_ProgrammerSound(int parameterKey)
+    {
+        return GetCallbackParam_internal<PROGRAMMER_SOUND_PROPERTIES>(parameterKey);
+    }
+
+    public static PLUGIN_INSTANCE_PROPERTIES GetCallbackParams_PluginInstance(int parameterKey)
+    {
+        return GetCallbackParam_internal<PLUGIN_INSTANCE_PROPERTIES>(parameterKey);
+    }
+
+    public static Sound GetCallbackParams_Sound(int parameterKey)
+    {
+        return GetCallbackParam_internal<Sound>(parameterKey);
+    }
+
+    public static FModEventInstance GetCallbackParams_StartEventCommand(int parameterKey)
+    {
+        return new FModEventInstance(GetCallbackParam_internal<EventInstance>(parameterKey));
+    }
+
+    public static TIMELINE_NESTED_BEAT_PROPERTIES GetCallbackParams_NestedBeat(int parameterKey)
+    {
+        return GetCallbackParam_internal<TIMELINE_NESTED_BEAT_PROPERTIES>(parameterKey);
     }
 
 
@@ -3685,6 +3868,7 @@ public sealed class FModAudioManager : MonoBehaviour
             _callbackCount = 0;
             _callbackInfos = new CallBackInfo[10];
             _callBackTargets.Clear();
+            _paramDescs.Clear();
 
             #if FMOD_Event_ENUM
             OnEventFadeComplete += BGMFadeComplete;
