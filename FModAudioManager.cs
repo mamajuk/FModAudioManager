@@ -1228,12 +1228,13 @@ public sealed class FModAudioManager : MonoBehaviour
                     EditorGUILayout.BeginHorizontal();
                     /*************************************/
                     float buttonWidth = 25f;
-                    float pathWidth = (position.width - buttonWidth * 4f);
+                    float pathWidth   = (position.width - buttonWidth * 4f);
+                    string prevPath   = _StudioSettings.SourceProjectPath;
 
-                    GUILayoutOption buttonWidthOption = GUILayout.Width(buttonWidth);
+                    GUILayoutOption buttonWidthOption  = GUILayout.Width(buttonWidth);
                     GUILayoutOption buttonHeightOption = GUILayout.Height(buttonWidth);
-                    GUILayoutOption pathWidthOption = GUILayout.Width(pathWidth);
-                    GUILayoutOption pathHeightOption = GUILayout.Height(buttonWidth);
+                    GUILayoutOption pathWidthOption    = GUILayout.Width(pathWidth);
+                    GUILayoutOption pathHeightOption   = GUILayout.Height(buttonWidth);
 
                     //경로 표시
                     using (var scope = new EditorGUI.ChangeCheckScope())
@@ -1246,7 +1247,7 @@ public sealed class FModAudioManager : MonoBehaviour
 
                             _StudioPathProperty.stringValue  = newPath;
                             _StudioSettings.HasSourceProject = true;
-                            ResetEditorSettings();
+                            ResetEditorSettings(true);
                         }
 
                         scope.Dispose();
@@ -1254,8 +1255,6 @@ public sealed class FModAudioManager : MonoBehaviour
 
                     //돋보기 버튼을 눌렀을 경우
                     if (GUILayout.Button(_SearchIconTex, _ButtonStyle, buttonWidthOption, buttonHeightOption)){
-
-                        string prevPath = _StudioSettings.SourceProjectPath;
 
                         try
                         {
@@ -1269,6 +1268,8 @@ public sealed class FModAudioManager : MonoBehaviour
                                 ResetEditorSettings(true);
                             }    
                         }
+
+                        _refresh = false;
                     }
 
                     //스튜디오 바로가기 버튼
@@ -1332,6 +1333,8 @@ public sealed class FModAudioManager : MonoBehaviour
                 {
                     if (_EditorSettings!=null){
 
+                        //현재 올바르게 빌드된 것들이 없다면 스킵한다....
+                        try { FMODUnity.EventManager.RefreshBanks(); } catch { _refresh = true; return;}
                         GetBusList(_EditorSettings.BusList);
                         GetBankList(_EditorSettings.BankList);
                         GetParamList(_EditorSettings.ParamDescList, _EditorSettings.ParamLableList);
