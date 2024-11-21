@@ -11,6 +11,7 @@ public struct NPData
 {
     public string Name;
     public string Path;
+    public bool   Extra;
 }
 
 [System.Serializable]

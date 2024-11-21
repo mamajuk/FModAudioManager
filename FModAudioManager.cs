@@ -799,6 +799,12 @@ public sealed class FModAudioManager : MonoBehaviour
             public string output;
         }
 
+        private enum BankLoadType
+        {
+            Load_At_Initialized,
+            Not_Load
+        }
+
         //=====================================
         ////            Fields           ///// 
         //====================================
@@ -1298,11 +1304,13 @@ public sealed class FModAudioManager : MonoBehaviour
 
                 using (var disableScope = new EditorGUI.DisabledGroupScope(allGroupInValid || studioPathInValid))
                 {
-                    if (GUILayout.Button("Save and Apply Settings", GUILayout.Width(position.width * .5f))){
+                    if (GUILayout.Button("Save Settings and Create Enums", GUILayout.Width(position.width * .5f))){
 
                         CreateEnumScript();
-                        if (_EditorSettings != null)
+                        ApplyBankLoadInfo();
+                        if (_EditorSettings != null && _StudioSettings != null)
                         {
+                            EditorUtility.SetDirty(_StudioSettings);
                             EditorUtility.SetDirty(_EditorSettings);
                         }
 
@@ -1400,7 +1408,7 @@ public sealed class FModAudioManager : MonoBehaviour
         {
             #region Omit
             List<NPData> bankList = _EditorSettings.BankList;
-            int Count = bankList.Count;
+            int Count     = bankList.Count;
 
             EditorGUI.indentLevel++;
             _BankSettingsFade.target = EditorGUILayout.Foldout(_BankSettingsFade.target, $"FMod Banks<color={_CountColorStyle}>({Count})</color>", _FoldoutTxtStyle);
@@ -1415,7 +1423,7 @@ public sealed class FModAudioManager : MonoBehaviour
                     /*******************************************/
                     float buttonWidth  = 150f;
                     float buttonHeight = 25f;
-                    float pathWidth    = (position.width - buttonWidth - 20f);
+                    float pathWidth    = (position.width - buttonWidth - 40f);
 
                     GUILayoutOption buttonWidthOption  = GUILayout.Width(buttonWidth);
                     GUILayoutOption buttonHeightOption = GUILayout.Height(buttonHeight);
@@ -1428,12 +1436,28 @@ public sealed class FModAudioManager : MonoBehaviour
                     EditorGUI.indentLevel++;
                     for (int i = 0; i < Count; i++){
 
-                        NPData bank = bankList[i];
+                        NPData bank    = bankList[i];
+                        string rawName = bank.Name.Replace("_", ".");
 
+                        EditorGUILayout.LabelField($"<color={_ContentColorStyle}>{bank.Name}</color>", _ContentTxtStyle, buttonWidthOption);
                         using (var horizontal = new EditorGUILayout.HorizontalScope())
                         {
-                            EditorGUILayout.LabelField($"<color={_ContentColorStyle}>{bank.Name}</color>", _ContentTxtStyle, buttonWidthOption);
                             EditorGUILayout.TextArea(bank.Path, _TxtFieldStyle, pathWidthOption, pathHeightOption);
+
+                            //초기화시 뱅크가 로드되도록 설정이 되어있다면....
+                            bool         isLoaded  = bank.Extra;
+                            BankLoadType loadType  = (isLoaded? BankLoadType.Load_At_Initialized:BankLoadType.Not_Load);
+
+                            /***시작시 로드 필드를 변경했을 경우....**/
+                            using (var scope = new EditorGUI.ChangeCheckScope())
+                            {
+                                loadType = (BankLoadType)EditorGUILayout.EnumPopup(loadType, GUILayout.Width(170f), buttonHeightOption);
+                                if(scope.changed){
+                                    bank.Extra  = (loadType==BankLoadType.Load_At_Initialized);
+                                    bankList[i] = bank;
+                                }
+                            }
+
                             horizontal.Dispose();
                         }
 
@@ -1671,10 +1695,45 @@ public sealed class FModAudioManager : MonoBehaviour
         //========================================
         ////          Utility Methods         ////
         //========================================
+        private void ApplyBankLoadInfo()
+        {
+            #region Omit
+            /***************************************************
+             *    뱅크들의 로드 정보를 최종 적용한다....
+             * *****/
+            int                    count    = _EditorSettings.BankList.Count;
+            FMODUnity.BankLoadType loadType = FMODUnity.BankLoadType.All;
+
+            _StudioSettings.BanksToLoad.Clear();
+            for(int i=0; i<count; i++)
+            {
+                NPData bank = _EditorSettings.BankList[i];
+
+                /**FMod 초기화 단계에서 해당 뱅크를 로드하는가?**/
+                if (bank.Extra==false){
+                    loadType = FMODUnity.BankLoadType.Specified;
+                }
+                else _StudioSettings.BanksToLoad.Add(bank.Name.Replace("_", "."));
+            }
+
+            /**모든 뱅크를 로드하는 것이라면, 특정 뱅크들의 로드 정보를 초기화한다....**/
+            if (loadType == FMODUnity.BankLoadType.All){
+                _StudioSettings.BanksToLoad.Clear();
+            }
+
+            /**모든 뱅크를 로드하지 않는가?**/
+            else if (loadType == FMODUnity.BankLoadType.Specified && _StudioSettings.BanksToLoad.Count==0){
+                loadType = FMODUnity.BankLoadType.None;
+            }
+
+            _StudioSettings.BankLoadType = loadType;
+            #endregion
+        }
+
         private void ResetEditorSettings()
         {
             #region Omit
-            if (_EditorSettings == null) return;
+            if (_EditorSettings == null || _StudioSettings==null) return;
 
             //Editor Settings Reset
             _EditorSettings.FoldoutBooleans = 0;
@@ -1690,6 +1749,10 @@ public sealed class FModAudioManager : MonoBehaviour
             _EditorSettings.EventGroups[1].TotalEvent = 0;
             _EditorSettings.EventGroups[2].TotalEvent = 0;
             EditorUtility.SetDirty(_EditorSettings);
+
+            //Studio Settings Reset
+            _StudioSettings.BankLoadType = FMODUnity.BankLoadType.All;
+            _StudioSettings.BanksToLoad.Clear();
             #endregion
         }
 
@@ -2168,8 +2231,9 @@ public sealed class FModAudioManager : MonoBehaviour
 
                 NPData info = new NPData()
                 {
-                    Name = bankName,
-                    Path = bankPath
+                    Name  = bankName,
+                    Path  = bankPath,
+                    Extra = true
                 };
 
                 lists.Add(info);
@@ -3155,7 +3219,13 @@ public sealed class FModAudioManager : MonoBehaviour
             FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid), position);
             return newInstance;
         }
-        catch { return new FModEventInstance(); }
+        catch {
+
+#if UNITY_EDITOR
+            UnityEngine.Debug.Log("FModAudioManager.CreateInstance() failed! Please check if the Bank with the event you want to use has been loaded.");
+#endif
+            return new FModEventInstance(); 
+        }
         #endregion
     }
 
