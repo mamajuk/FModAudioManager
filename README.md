@@ -18,7 +18,7 @@
 <img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_LoadedStudioData.gif?raw=true">
 </td></tr></table>
 
-**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Load Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 후, **Save and Apply Settings** 버튼을 누르면 ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체가 작성되며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다. 위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
+**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Load Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 후, **Save Settings and Create Enums** 버튼을 누르면 ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체가 작성되며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다. 위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
 
 ------------------------------------------------------------------------
 ```FModBusType```: **Bus**들을 나타내는 열거형입니다.<br/>
@@ -41,7 +41,9 @@
 
 이후 **FMod Studio Project** 에서 새로운 음원이 추가되거나, 변경된다면 위 과정을 통해 열거형 및 구조체를 만들면 됩니다. 이제 **Visual Studio** 와 같은 IDE를 통해 **C# Script**를 작성한다면, 열거형 및 구조체에 대한 코드 힌트가 표시되어 직관적인 스크립팅을 진행할 수 있습니다. 
 
-다음은 기본적인 사용방법들에 대한 예시들을 보여주며, 더 자세한 사용방법은 [FMod Audio Manager Reference](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)를 참고하십시오.
+## Scripting Example
+
+다음은 기본적인 사용방법들에 대한 예시들을 보여주며, 더 자세한 사용방법은 [FMod Audio Manager Reference](https://bramble-route-61a.notion.site/Unity-C-FModAudioManager-e3837f0765fe4254aa40a0156d050288?pvs=4)를 참고해주세요.
 ``` c#
 private IEnumerator Start()
 {
@@ -56,30 +58,33 @@ private IEnumerator Start()
 }
 ```
 
-(▲(1): BGM 자동 페이드 적용 및 BGM 실행 및 전환...  )
+(**#Example 1**: BGM 자동 페이드를 사용하여, 새로운 BGM이 실행될 때마다 3초 간의 페이드 효과 적용. )
 
 ``` c#
 private void Start()
 {
-    FModAudioManager.PlayOneShotSFX(
-			FModSFXEventType.Player_Jump, 
-			transform.position, 
-			2f, 
-			.5f
-    );
+     FModAudioManager.PlayOneShotSFX(
+            FModSFXEventType.Interaction_Gaurd,
+            transform.position,
+            2f,
+            .5f
+        );
 }
 ```
 
-(▲(2): 단발성 SFX 재생 및 볼륨 및 시작지점등 변경.  )
+(**#Example 2**: 가드 효과음을 현재 위치에서 실행한다. 또한 볼륨을 2배로 하고 50% 지점에서 시작하도록 한다.   )
 
 ``` c#
 private FModEventInstance WaterStream;
 
 private void Start()
 {
+    //Water_Stream Event는 3D 이벤트.
     WaterStream = FModAudioManager.CreateInstance(FModSFXEventType.Water_Stream);
+    WaterStream.Position      = transform.position;
+    WaterStream.Min3DDistance = 0.5f;
+    WaterStream.Max3DDistance = 5f;
     WaterStream.Play();
-
 }
 
 private void OnCollisionEnter(Collision collision)
@@ -89,26 +94,43 @@ private void OnCollisionEnter(Collision collision)
 
 private void OnDestroy()
 {
-   //사용하지 않는 Event를 파괴한다.
    WaterStream.Destroy();
 }
 ```
 
-(▲(3): FModEventInstance를 생성하고, 물리적인 충돌이 있을 때까지 Event를 재생. )
+(**#Example 3**: FModEventInstance를 현재 위치에 생성한다. Event 위치로부터 0.1 거리까지는 최대로, 5 거리까지 가면 들리지 않도록 설정. 물리적인 충돌이 있을 때 해당 Event를 파괴한다. )
 
 ``` c#
-FModAudioManager.SetBusVolume(FModBusType.Enviorment, .5f);
+public class Test : MonoBehaviour, IFModEventFadeComplete
+{
+    void Start()
+    {
+        FModAudioManager.SetBusVolume(FModBusType.SFX_Ambience, 0f);
+        FModAudioManager.ApplyBusFade(FModBusType.SFX_Ambience, 1f, 10f, 3);
+        FModAudioManager.OnEventFadeComplete += OnFModEventComplete;
+    }
+
+    public void OnFModEventComplete(int fadeID, float goalVolume)
+    {
+        if (fadeID==3){
+            Debug.Log("SFX_Ambience Bus의 페이드가 완료됨.");
+            FModAudioManager.StopBusAllEvents(FModBusType.SFX_Ambience);
+            FModAudioManager.OnEventFadeComplete-= OnFModEventComplete;
+        }
+    }
+}
 ```
 
-(▲(4): Enviorment Bus의 Volume을 50%로 감소. )
+(**#Example 4**: SFX_Ambience Bus의 볼륨을 0으로 지정한 후, 10초동안 볼륨이 1이 되도록 페이드 적용한다. 해당 페이드가 완료되면 SFX_Ambience Bus에 속해있는 모든 Event를 강제로 멈추고, 페이드 콜백을 해지한다.  )
 
 ``` c#
-FModAudioManager.LoadBank( FModBankType.Player );
-FModAudioManager.UnLoadBank( FModBankType.Player );
-FModAudioManager.LoadAllBanks();
+if(!FModAudioManager.BankIsLoaded(FModBankType.BGM)){
+       FModAudioManager.UnloadBank(FModBankType.SFX);
+       FModAudioManager.LoadBank(FModBankType.BGM);
+}
 ```
 
-(▲(5): 원하는 Bank 로드/언로드 및 모든 Bank로드. )
+(**#Example 5**: BGM bank가 로드되지 않은 상태라면, SFX Bank를 언로드하고, BGM Bank를 로드한다. )
 
 ``` c#
  FModParameterReference paramRef = new FModParameterReference();
@@ -144,6 +166,26 @@ Instance.Set3DDistance(1f, 10f);
 Instance.SetParameter(FModLocalParamType.PlayerWalkType, FModParamLabel.PlayerWalkType.Grass);
 Instance.Play();
 ````
-(▲(6): Event의 파리미터를 수정하는 다양한 방법들.  )
+(**#Example 4**: Event의 파리미터를 수정하는 다양한 방법들을 보여주는 예제. )
 
+```` c#
+public class Test : MonoBehaviour, IFModEventCallBack
+{
+    private void Start()
+    {
+        FModAudioManager.PlayBGM(FModBGMEventType.Vocal_Jungle);
+        FModAudioManager.SetBGMEventCallback(EVENT_CALLBACK_TYPE.TIMELINE_MARKER, OnFModEventCallBack);
+    }
 
+    public void OnFModEventCallBack(EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, int paramKey)
+    {
+        TIMELINE_MARKER_PROPERTIESEX parameters = FModAudioManager.GetCallbackParams_Marker(paramKey);
+
+        if(parameters.MarkerName=="FadeStart"){
+            FModAudioManager.ApplyBGMFade(0f, 3f, 0, true);
+            FModAudioManager.ClearBGMEventCallback();
+        }
+    }
+}
+````
+(**#Example 5**: BGM을 실행하고 콜백 이벤트를 설정한다. BGM이 실행되다가 "FadeStart" Marker에 도달하면, 3초에 걸쳐서 BGM을 0으로 만드는 페이드를 적용한다. )
