@@ -648,12 +648,11 @@ public struct FModEventInstance
         return ins.Ins; 
     }
 
-    public void Play(float volume = -1f, float startTimelinePositionRatio = 0f, string paramName = "", float paramValue = 0f)
+    public void Play(float volume = -1f, float startTimelinePositionRatio = -1f, string paramName = "", float paramValue = 0f)
     {
-        if(volume>=0) Ins.setVolume(volume);
+        if(volume>=0)     Ins.setVolume(volume);
         if(paramName!="") Ins.setParameterByName(paramName, paramValue);
-
-        TimelinePositionRatio = startTimelinePositionRatio;
+        if(startTimelinePositionRatio>=0f) TimelinePositionRatio = startTimelinePositionRatio;
         Ins.start();
     }
 
@@ -814,7 +813,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private const string _PresetFolderPath         = "Metadata/ParameterPreset";
         private const string _PresetFolderFolderPath   = "Metadata/ParameterPresetFolder";
         private const string _ScriptDefine             = "FMOD_Event_ENUM";
-        private const string _EditorVersion            = "v1.241120";
+        private const string _EditorVersion            = "v1.241121";
 
         private const string _EventRootPath            = "event:/";
         private const string _BusRootPath              = "bus:/";
@@ -868,11 +867,11 @@ public sealed class FModAudioManager : MonoBehaviour
         private Regex           _regex     = new Regex(@"[^a-zA-Z0-9_]");
         private StringBuilder   _builder   = new StringBuilder();
         private bool            _refresh   = false;
-        private Vector2         _Scrollpos  = Vector2.zero;
+        private Vector2         _Scrollpos = Vector2.zero;
 
         /** Categorys... *************************/
-        private static readonly string[] _EventGroups = new string[] { "BGM", "SFX", "NoGroup" };
-        private static readonly string[] _ParamGroups = new string[] { "Global Parameters", "Local Parameters" };
+        private static readonly string[] _EventGroups   = new string[] { "BGM", "SFX", "NoGroup" };
+        private static readonly string[] _ParamGroups   = new string[] { "Global Parameters", "Local Parameters" };
         private int _EventGroupSelected = 0;
         private int _ParamGroupSelected = 0;
 
@@ -885,7 +884,7 @@ public sealed class FModAudioManager : MonoBehaviour
         private static GUIStyle _TxtFieldErrorStyle;
         private static GUIStyle _CategoryTxtStyle;
         private static GUIStyle _ContentTxtStyle;
-        private string _CountColorStyle = "#8DFF9E";
+        private string _CountColorStyle   = "#8DFF9E";
         private string _ContentColorStyle = "#6487AA";
         private string _FoldoutColorStyle = "black";
 
@@ -1313,7 +1312,7 @@ public sealed class FModAudioManager : MonoBehaviour
                 }
 
                 //FMod Studio 데이터 불러오기
-                if(GUILayout.Button("Loaded Studio Settings", GUILayout.Width(position.width*.5f)))
+                if(GUILayout.Button("Load Studio Settings", GUILayout.Width(position.width*.5f)))
                 {
                     if (_EditorSettings!=null){
 
@@ -1407,20 +1406,21 @@ public sealed class FModAudioManager : MonoBehaviour
             _BankSettingsFade.target = EditorGUILayout.Foldout(_BankSettingsFade.target, $"FMod Banks<color={_CountColorStyle}>({Count})</color>", _FoldoutTxtStyle);
             EditorGUILayout.Space(3f);
 
-
             using (var fadeScope = new EditorGUILayout.FadeGroupScope(_BankSettingsFade.faded))
             {
                 if (fadeScope.visible)
                 {
                     EditorGUILayout.BeginVertical();
-                    /*******************************************/
-                    float buttonWidth = 25f;
-                    float pathWidth = (position.width - buttonWidth * 8f);
 
-                    GUILayoutOption buttonWidthOption = GUILayout.Width(buttonWidth);
-                    GUILayoutOption buttonHeightOption = GUILayout.Height(buttonWidth);
-                    GUILayoutOption pathWidthOption = GUILayout.Width(pathWidth);
-                    GUILayoutOption pathHeightOption = GUILayout.Height(buttonWidth);
+                    /*******************************************/
+                    float buttonWidth  = 150f;
+                    float buttonHeight = 25f;
+                    float pathWidth    = (position.width - buttonWidth - 20f);
+
+                    GUILayoutOption buttonWidthOption  = GUILayout.Width(buttonWidth);
+                    GUILayoutOption buttonHeightOption = GUILayout.Height(buttonHeight);
+                    GUILayoutOption pathWidthOption    = GUILayout.Width(pathWidth);
+                    GUILayoutOption pathHeightOption   = GUILayout.Height(buttonHeight);
 
                     if(Count>0) EditorGUILayout.HelpBox("An FModBankType enum is created based on the information shown below.", MessageType.Info);
 
@@ -1428,12 +1428,16 @@ public sealed class FModAudioManager : MonoBehaviour
                     EditorGUI.indentLevel++;
                     for (int i = 0; i < Count; i++){
 
+                        NPData bank = bankList[i];
+
                         using (var horizontal = new EditorGUILayout.HorizontalScope())
                         {
-                            EditorGUILayout.LabelField($"<color={_ContentColorStyle}>{bankList[i].Name}</color>", _ContentTxtStyle, GUILayout.Width(150));
-                            EditorGUILayout.TextArea(bankList[i].Path, _TxtFieldStyle, pathWidthOption, pathHeightOption);
+                            EditorGUILayout.LabelField($"<color={_ContentColorStyle}>{bank.Name}</color>", _ContentTxtStyle, buttonWidthOption);
+                            EditorGUILayout.TextArea(bank.Path, _TxtFieldStyle, pathWidthOption, pathHeightOption);
                             horizontal.Dispose();
                         }
+
+                        EditorGUILayout.Space(5f);
                     }
                     EditorGUI.indentLevel--;
 
