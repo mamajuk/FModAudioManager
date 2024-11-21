@@ -1244,7 +1244,7 @@ public sealed class FModAudioManager : MonoBehaviour
                         //경로가 변경되었을 경우
                         if (scope.changed && newPath.EndsWith(".fspro")) {
 
-                            _StudioPathProperty.stringValue = newPath;
+                            _StudioPathProperty.stringValue  = newPath;
                             _StudioSettings.HasSourceProject = true;
                             ResetEditorSettings();
                         }
@@ -1256,11 +1256,19 @@ public sealed class FModAudioManager : MonoBehaviour
                     if (GUILayout.Button(_SearchIconTex, _ButtonStyle, buttonWidthOption, buttonHeightOption)){
 
                         string prevPath = _StudioSettings.SourceProjectPath;
-                        if(FMODUnity.SettingsEditor.BrowseForSourceProjectPath(_StudioSettingsObj) && !prevPath.Equals(_StudioSettings.SourceProjectPath))
+
+                        try
                         {
-                            ResetEditorSettings();
+                            if (FMODUnity.SettingsEditor.BrowseForSourceProjectPath(_StudioSettingsObj) && !prevPath.Equals(_StudioSettings.SourceProjectPath)){
+                                ResetEditorSettings(true);
+                            }
                         }
-                        
+                        catch
+                        {
+                            if(!prevPath.Equals(_StudioSettings.SourceProjectPath)){
+                                ResetEditorSettings(true);
+                            }    
+                        }
                     }
 
                     //스튜디오 바로가기 버튼
@@ -1713,6 +1721,8 @@ public sealed class FModAudioManager : MonoBehaviour
                 if (bank.Extra==false){
                     loadType = FMODUnity.BankLoadType.Specified;
                 }
+
+                /**해당 뱅크가 실제로 존재할 경우만....**/
                 else _StudioSettings.BanksToLoad.Add(bank.Name.Replace("_", "."));
             }
 
@@ -1730,7 +1740,7 @@ public sealed class FModAudioManager : MonoBehaviour
             #endregion
         }
 
-        private void ResetEditorSettings()
+        private void ResetEditorSettings(bool setDirty=false)
         {
             #region Omit
             if (_EditorSettings == null || _StudioSettings==null) return;
@@ -1753,6 +1763,12 @@ public sealed class FModAudioManager : MonoBehaviour
             //Studio Settings Reset
             _StudioSettings.BankLoadType = FMODUnity.BankLoadType.All;
             _StudioSettings.BanksToLoad.Clear();
+
+            if(setDirty)
+            {
+                EditorUtility.SetDirty(_StudioSettings);
+                EditorUtility.SetDirty(_EditorSettings);
+            }
             #endregion
         }
 
