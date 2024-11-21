@@ -1,6 +1,5 @@
 using FMOD.Studio;
 using FMODUnity;
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
@@ -10,7 +9,6 @@ using System.Text.RegularExpressions;
 using UnityEngine.Events;
 using System.Xml;
 using System.Runtime.InteropServices;
-using Unity.VisualScripting;
 using FMOD;
 
 #if UNITY_EDITOR
@@ -463,7 +461,7 @@ public struct FModEventInstance
         }
 
     }
-    public Vector3       Position
+    public Vector3       Position3D
     {
         get
         {
@@ -476,7 +474,97 @@ public struct FModEventInstance
 
         set
         {
-            Ins.set3DAttributes(FMODUnity.RuntimeUtils.To3DAttributes(value));
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+
+            attributes.position = new FMOD.VECTOR() { 
+                x = value.x, 
+                y = value.y,
+                z = value.z
+            };
+
+            Ins.set3DAttributes(attributes);
+        }
+    }
+    public Vector3       Forward3D
+    {
+        get
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+            FMOD.VECTOR dir = attributes.forward;
+            return new Vector3(dir.x, dir.y, dir.z);
+        }
+
+        set
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+            attributes.forward = new FMOD.VECTOR()
+            {
+                x = value.x,
+                y = value.y,
+                z = value.z
+            };
+
+            Ins.set3DAttributes(attributes);
+        }
+    }
+    public Vector3       Up3D
+    {
+        get
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+            FMOD.VECTOR dir = attributes.up;
+            return new Vector3(dir.x, dir.y, dir.z);
+        }
+
+        set
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+
+            attributes.up = new FMOD.VECTOR()
+            {
+                x = value.x,
+                y = value.y,
+                z = value.z
+            };
+
+            Ins.set3DAttributes(attributes);
+        }
+    }
+    public Vector3       Velocity3D
+    {
+        get
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+            FMOD.VECTOR velocity = attributes.velocity;
+            return new Vector3(velocity.x, velocity.y, velocity.z);
+        }
+
+        set
+        {
+            FMOD.ATTRIBUTES_3D attributes;
+            Ins.get3DAttributes(out attributes);
+
+
+            attributes.velocity = new FMOD.VECTOR()
+            {
+                x = value.x,
+                y = value.y,
+                z = value.z
+            };
+
+            Ins.set3DAttributes(attributes);
         }
     }
     public bool          IsValid{ get{ return Ins.isValid(); } }
@@ -3304,7 +3392,7 @@ public sealed class FModAudioManager : MonoBehaviour
 
             FModEventInstance newInstance = new FModEventInstance(FMODUnity.RuntimeManager.CreateInstance(guid));
             newInstance.Set3DDistance(minDistance, maxDistance);
-            newInstance.Position              = position;
+            newInstance.Position3D            = position;
             newInstance.TimelinePositionRatio = startTimelinePositionRatio;
             if (volumeIsChanged) newInstance.Volume = volume;
             if (paramIsChanged)
@@ -3451,7 +3539,7 @@ public sealed class FModAudioManager : MonoBehaviour
             }
 
             _Instance._BGMIns                       = CreateInstance(eventType, position);
-            _Instance._BGMIns.Position              = position;
+            _Instance._BGMIns.Position3D            = position;
             _Instance._BGMIns.TimelinePositionRatio = startTimelinePositionRatio;
             if (paramIsChanged)
             {
