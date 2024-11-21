@@ -18,13 +18,7 @@
 <img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_LoadedStudioData.gif?raw=true">
 </td></tr></table>
 
-**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Load Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 후, **Save and Apply Settings** 버튼을 누르면 ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체가 작성되며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다.
-
-<table><tr><td>
-<img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_Scripting.gif?raw=true">
-</td></tr></table>
-
-위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
+**FMod Studio Project** 에서 작업이 끝났다면 이벤트를 빌드한 다음, **FModAudioSettings Editor** 상단의 **Load Studio Settings** 버튼을 눌러 연결된 **FMod Studio Project** 로부터 모든 데이터를 불러오도록 합니다. **FModAudioSettings Editor** 에 표시된 정보들을 통해 불러온 데이터들이 정확한지 확인한 후, **Save and Apply Settings** 버튼을 누르면 ```FModAudioManager``` 에서 사용할 수 있는 열거형 및 구조체가 작성되며, **Unity Engine** 에서 이에 대한 컴파일을 진행합니다. 위 과정을 통해 생성된 **열거형**과 **구조체**는 다음과 같습니다:<br/>
 
 ------------------------------------------------------------------------
 ```FModBusType```: **Bus**들을 나타내는 열거형입니다.<br/>
@@ -40,6 +34,10 @@
 ( ※ **Event**, **Bus**, **Parameter** 는 각각의 경로를 기반으로 이름이 결정됩니다. )
 
 ------------------------------------------------------------------------
+
+<table><tr><td>
+<img src="https://github.com/mamajuk/FModAudioManager/blob/main/Readmy_Data/Readmy_Scripting.gif?raw=true">
+</td></tr></table>
 
 이후 **FMod Studio Project** 에서 새로운 음원이 추가되거나, 변경된다면 위 과정을 통해 열거형 및 구조체를 만들면 됩니다. 이제 **Visual Studio** 와 같은 IDE를 통해 **C# Script**를 작성한다면, 열거형 및 구조체에 대한 코드 힌트가 표시되어 직관적인 스크립팅을 진행할 수 있습니다. 
 
