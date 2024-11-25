@@ -81,7 +81,7 @@ private void Start()
 {
     //Water_Stream Event는 3D 이벤트.
     WaterStream = FModAudioManager.CreateInstance(FModSFXEventType.Water_Stream);
-    WaterStream.Position      = transform.position;
+    WaterStream.Position3D    = transform.position;
     WaterStream.Min3DDistance = 0.5f;
     WaterStream.Max3DDistance = 5f;
     WaterStream.Play();
@@ -160,8 +160,7 @@ FModAudioManager.PlayOneShotSFX(
 FModEventInstance Instance = FModAudioManager.CreateInstance(FModSFXEventType.Player_Walk);
 Instance.Volume 		= .5f;
 Instance.Pitch 			= .1f;
-Instance.AttachedGameObject 	= gameObject;
-Instance.Position 		= transform.position;
+Instance.Position3D 		= transform.position;
 Instance.Set3DDistance(1f, 10f);
 Instance.SetParameter(FModLocalParamType.PlayerWalkType, FModParamLabel.PlayerWalkType.Grass);
 Instance.Play();
