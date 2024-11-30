@@ -134,7 +134,7 @@ if(!FModAudioManager.BankIsLoaded(FModBankType.BGM)){
 
 ``` c#
  FModParameterReference paramRef = new FModParameterReference();
-	paramRef.SetParameter(
+ paramRef.SetParameter(
    	FModGlobalParamType.BGMIsLooping,
    	FModParamLabel.BGMIsLooping.Used
 );
@@ -150,7 +150,6 @@ FModAudioManager.PlayBGM(FModBGMEventType.Wagtail_bgm_title, paramRef);
 ````
 ```` c#
 FModAudioManager.PlayOneShotSFX(
-
     FModSFXEventType.Broken,
     FModLocalParamType.BrokenType,
     FModParamValueRange.BrokenType.Max
@@ -173,7 +172,10 @@ public class Test : MonoBehaviour, IFModEventCallBack
     private void Start()
     {
         FModAudioManager.PlayBGM(FModBGMEventType.Vocal_Jungle);
-        FModAudioManager.SetBGMEventCallback(EVENT_CALLBACK_TYPE.TIMELINE_MARKER, OnFModEventCallBack);
+        FModAudioManager.SetBGMEventCallback(
+             EVENT_CALLBACK_TYPE.TIMELINE_MARKER,
+             OnFModEventCallBack
+        );
     }
 
     public void OnFModEventCallBack(EVENT_CALLBACK_TYPE eventType, FModEventInstance eventTarget, int paramKey)
