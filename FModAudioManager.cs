@@ -61,12 +61,11 @@ public struct FModParameterReference
             if (GUI_Initialized(property)==false) return;
 
             /**펼쳐진 상태에서만 하위 내용들을 모조리 표시한다....*/
-            position.y -= (property.isExpanded ? 25f : 0f);
+            position.height = GetBaseHeight();
+
             if (property.isExpanded = EditorGUI.Foldout(position, property.isExpanded, property.displayName))
             {
-                position.height = GetBaseHeight(property);
-
-                position.y += 50f;
+                position.y += GetBaseHeight();
 
                 /**모든 프로퍼티들을 표시한다...*/
                 GUI_ShowParamType(ref position);
@@ -77,7 +76,7 @@ public struct FModParameterReference
 
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
-            return GetBaseHeight(property) + (property.isExpanded? 50f:0f);
+            return base.GetPropertyHeight(property, label) + (property.isExpanded? 50f:0f);
         }
 
 
@@ -162,15 +161,11 @@ public struct FModParameterReference
         {
             #region Omit
 #if FMOD_Event_ENUM
-            Rect rect = header;
-            //rect.x += 20f;
-
-            /**작은 사각형을 그린다...*/
-            
-
             /**************************************
              *   파라미터 타입을 표시한다...
              * ***/
+            Rect rect = header;
+
             using (var scope = new EditorGUI.ChangeCheckScope()){
 
                 bool        isGlobal = isGlobalProperty.boolValue;
@@ -206,7 +201,7 @@ public struct FModParameterReference
              * ***/
             using (var scope = new EditorGUI.ChangeCheckScope())
             {
-                rect.x += rect.width;
+                rect.x += rect.width + 5f;
                 bool value = EditorGUI.ToggleLeft(rect, "Is Global", isGlobalProperty.boolValue);
             
                 /**값이 변경되었다면 갱신한다...*/
@@ -324,7 +319,7 @@ public struct FModParameterReference
         //===============================================
         /////            Utility Methods             ////
         ///==============================================
-        private float GetBaseHeight(SerializedProperty property)
+        private float GetBaseHeight()
         {
             return GUI.skin.textField.CalcSize(GUIContent.none).y;
         }
@@ -2460,7 +2455,7 @@ public sealed class FModAudioManager : MonoBehaviour
                         isGlobal         = (isGlobalNode!=null),
                         LableCount       = labelNodes.Count,
                         Min              = (minNode==null? 0f:float.Parse(minNode)),
-                        Max              = (maxNode==null? 0f:float.Parse(maxNode)),
+                        Max              = (maxNode==null? 1f:float.Parse(maxNode)),
                     };
 
                     for (int i=0; i<newDesc.LableCount; i++){
