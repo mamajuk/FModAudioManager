@@ -110,9 +110,10 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
             float eventRefHeight = EditorGUI.GetPropertyHeight(_EventRefProperty) + 10f;
             float paramRefHeight = EditorGUI.GetPropertyHeight(_ParamRefProperty) + 10f;
-            float timingHeight   = GetBaseHeight() * (_PlayApplyTimingProperty.isExpanded? 10f:1f) + 10f;
-            float dddHeight      = GetBaseHeight() * (_PositionProperty.isExpanded? 10f:1f) + 10f;
-            float total          = (eventRefHeight + paramRefHeight + timingHeight + dddHeight);
+            float playHeight     = GetBaseHeight() * (_IsOneShotProperty.isExpanded ? 6f : 1f) + 10f;
+            float timingHeight   = GetBaseHeight() * (_PlayApplyTimingProperty.isExpanded? 4f:1f) + 10f;
+            float dddHeight      = GetBaseHeight() * (_PositionProperty.isExpanded? 8f:1f) + 10f;
+            float total          = (eventRefHeight + paramRefHeight + timingHeight + dddHeight + playHeight + 10f);
 
             return GetBaseHeight() + (property.isExpanded ? total : 0f);
             #endregion
@@ -178,31 +179,44 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
 
             /**Timing...**/
-            if(_PlayApplyTimingProperty.isExpanded =  EditorGUI.Foldout(position, _PlayApplyTimingProperty.isExpanded, "Play/Stop Settings"))
+            if(_IsOneShotProperty.isExpanded =  EditorGUI.Foldout(position, _IsOneShotProperty.isExpanded, "Play Settings"))
             {
                 position.x     += 25f;
                 position.y     += 25f;
                 position.width -= 25f;
 
                 //Volume...
-                _VolumeProperty.floatValue = EditorGUI.Slider(position,"Volume", _VolumeProperty.floatValue, 0f, 10f);
+                _VolumeProperty.floatValue = EditorGUI.Slider(position, "Volume", _VolumeProperty.floatValue, 0f, 10f);
                 position.y += 25f;
+
+                //TimelinePositionRatio...
+                _StartTimelinePositionProperty.floatValue = EditorGUI.Slider(position, "TimelinePosition Ratio", _StartTimelinePositionProperty.floatValue, 0f, 1f);
+                position.y += 25f;
+
+                //Play Timing...
+                _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
+                position.x     -= 25f;
+                position.width += 25f;
+            }
+
+            position.y += 25f;
+            GUI_DrawLine(ref position);
+
+
+            /**Timing...**/
+            if (_PlayApplyTimingProperty.isExpanded = EditorGUI.Foldout(position, _PlayApplyTimingProperty.isExpanded, "Stop Settings"))
+            {
+                position.x += 25f;
+                position.y += 25f;
+                position.width -= 25f;
 
                 //IsOneShot...
                 _IsOneShotProperty.boolValue = EditorGUI.Toggle(position, "DestroyAtStop", _IsOneShotProperty.boolValue);
                 position.y += 25f;
 
-                //TimelinePositionRatio...
-                _StartTimelinePositionProperty.floatValue = EditorGUI.Slider(position, "Start TimelinePosition Ratio", _StartTimelinePositionProperty.floatValue, 0f, 1f);
-                position.y += 25f;
-
-                //Play Timing...
-                _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
-                position.y += 25f;
-
                 //Stop Timing...
                 _StopApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Stop Timing", (FModEventApplyTiming)_StopApplyTimingProperty.intValue);
-                position.x     -= 25f;
+                position.x -= 25f;
                 position.width += 25f;
             }
 
@@ -218,12 +232,12 @@ public sealed class FModInspectorHelper : MonoBehaviour
                 position.width -= 25f;
 
                 //Position...
-                _PositionProperty.vector3Value = EditorGUI.Vector3Field(position, "position3D", _PositionProperty.vector3Value);
+                _PositionProperty.vector3Value = EditorGUI.Vector3Field(position, "position", _PositionProperty.vector3Value);
                 position.y += 25f;
 
                 //Override Distance
-                _OverrideDistanceProperty.boolValue = EditorGUI.Toggle(position,"Override Default Distance",  _OverrideDistanceProperty.boolValue);
-                position.y += 25f;
+                _OverrideDistanceProperty.boolValue = EditorGUI.Toggle(position,"Override Distance",  _OverrideDistanceProperty.boolValue);
+                position.y     += 25f;
 
                 //Min/Max Distance
                 using (var scope = new EditorGUI.DisabledGroupScope(!_OverrideDistanceProperty.boolValue))
@@ -405,18 +419,24 @@ public sealed class FModInspectorHelper : MonoBehaviour
     {
         #region Omit
         if (desc.Instance.IsValid) desc.Instance.Destroy();
-        desc.Instance                       = FModAudioManager.CreateInstance(desc.EventRef);
-        desc.Instance.Position3D            = desc.EventPos;
-        desc.Instance.Volume                = desc.Volume;
+
+        /*********************************************
+         *    유효한 EventInstance가 없다면 생성한다...
+         * *****/
+        desc.Instance = FModAudioManager.CreateInstance(desc.EventRef);
+        desc.Instance.Position3D = desc.EventPos;
+        desc.Instance.Volume = desc.Volume;
         desc.Instance.TimelinePositionRatio = desc.StartTimelinePositionRatio;
 
         //Min-Max Distance를 덮어씌우는가?
         if (desc.OverrideDistance){
+
             desc.Instance.Set3DDistance(desc.EventMinDistance, desc.EventMaxDistance);
         }
 
         //파라미터를 세팅한다....
-        if(desc.ParamRef.IsValid){
+        if (desc.ParamRef.IsValid){
+
             desc.Instance.SetParameter(desc.ParamRef);
         }
 
@@ -424,6 +444,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
         //사운드가 정지되면 자동으로 파괴되는가?
         if (desc.IsOneShot){
+
             desc.Instance.Destroy(true);
         }
         #endregion
@@ -437,7 +458,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
     public void PlayOneShotSFX(int index)
     {
         #region Omit
-        if (EventDescs == null || EventDescs.Length < index) return;
+        if (EventDescs == null || index<0 || EventDescs.Length <= index) return;
 
         ref InternalEventDesc desc = ref EventDescs[index];
         FModAudioManager.PlayOneShotSFX( desc.EventRef, desc.EventPos, desc.ParamRef, desc.Volume, desc.StartTimelinePositionRatio, desc.EventMinDistance, desc.EventMaxDistance );
@@ -447,7 +468,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
     public void PlayBGM( int index )
     {
         #region Omit
-        if (EventDescs == null || EventDescs.Length < index) return;
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
 
         ref InternalEventDesc desc = ref EventDescs[index];
         FModAudioManager.PlayBGM(desc.EventRef, desc.ParamRef, desc.Volume, desc.StartTimelinePositionRatio, desc.EventPos);
@@ -457,7 +478,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
     public void PlayInstance( int index )
     {
         #region Omit
-        if (EventDescs == null || EventDescs.Length < index) return;
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
         Play_Progress_Internal(ref EventDescs[index]);
         #endregion
     }
@@ -465,12 +486,49 @@ public sealed class FModInspectorHelper : MonoBehaviour
     public void StopInstance( int index )
     {
         #region Omit
-        if (EventDescs == null || EventDescs.Length < index) return;
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
 
         ref InternalEventDesc desc = ref EventDescs[index];
         if(desc.Instance.IsValid){
 
             desc.Instance.Stop();
+        }
+        #endregion
+    }
+
+    public void ResumeInstance( int index )
+    {
+        #region Omit
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
+
+        ref InternalEventDesc desc = ref EventDescs[index];
+        if (desc.Instance.IsValid){
+            desc.Instance.Resume();
+        }
+        #endregion
+    }
+
+    public void PauseInstance( int index )
+    {
+        #region Omit
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
+
+        ref InternalEventDesc desc = ref EventDescs[index];
+        if (desc.Instance.IsValid){
+            desc.Instance.Pause();
+        }
+        #endregion
+    }
+
+    public void DestroyInstance( int index )
+    {
+        #region Omit
+        if (EventDescs == null || index < 0 || EventDescs.Length <= index) return;
+
+        ref InternalEventDesc desc = ref EventDescs[index];
+        if (desc.Instance.IsValid){
+
+            desc.Instance.Destroy();
         }
         #endregion
     }
