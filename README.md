@@ -190,3 +190,12 @@ public class Test : MonoBehaviour, IFModEventCallBack
 }
 ````
 (**#Example 5**: BGM을 실행하고 콜백 이벤트를 설정한다. BGM이 실행되다가 "FadeStart" Marker에 도달하면, 3초에 걸쳐서 BGM을 0으로 만드는 페이드를 적용한다. )
+
+```` c#
+FModAudioManager.PlayOneShotSFX(
+   FModSFXEventType.Interaction_HIT,
+   FModLocalParamType.Material,
+   Mathf.Round(FModParamValueRange.Material.Max * Random.Range(0f, 1f))
+);
+````
+(**Example 6**: Interaction_HIT SFX Event를 재생하되, LocalParameter인 Material이 가지는 값들을 랜덤으로 하나 설정한다.)
