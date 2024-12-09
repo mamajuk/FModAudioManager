@@ -27,6 +27,13 @@ public sealed class FModInspectorHelper : MonoBehaviour
         ALL             = (Start|CollisionEnter|CollisionExit|TriggerEnter|TriggerExit)
     }
 
+    public enum FModEventPlayMethodType
+    {
+        Instance_Play,
+        PlayOneShotSFX,
+        PlayBGM
+    }
+
     [System.Serializable]
     public struct InternalEventDesc
     {
@@ -34,6 +41,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
         public FModParameterReference   ParamRef;
         public FModEventApplyTiming     PlayApplyTiming;
         public FModEventApplyTiming     StopApplyTiming;
+        public FModEventPlayMethodType  EventPlayType;
         public Vector3                  EventPos;
         public bool                     IsOneShot;
         public bool                     OverrideDistance;
@@ -68,6 +76,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
         private SerializedProperty _StopApplyTimingProperty;
 
         private SerializedProperty _IsOneShotProperty;
+        private SerializedProperty _EventPlayType;
         private SerializedProperty _VolumeProperty;
         private SerializedProperty _StartTimelinePositionProperty;
 
@@ -75,6 +84,11 @@ public sealed class FModInspectorHelper : MonoBehaviour
         private SerializedProperty _EventMinDistanceProperty;
         private SerializedProperty _EventMaxDistanceProperty;
         private SerializedProperty _OverrideDistanceProperty;
+
+        private static readonly string[] _methodTable = new string[]
+        {
+            "Instance.Play()", "PlayOneShotSFX()", "PlayBGM()"
+        };
 
 
 
@@ -110,7 +124,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
             float eventRefHeight = EditorGUI.GetPropertyHeight(_EventRefProperty) + 10f;
             float paramRefHeight = EditorGUI.GetPropertyHeight(_ParamRefProperty) + 10f;
-            float playHeight     = GetBaseHeight() * (_IsOneShotProperty.isExpanded ? 6f : 1f) + 10f;
+            float playHeight     = GetBaseHeight() * (_IsOneShotProperty.isExpanded ? 7f : 1f) + 10f;
             float timingHeight   = GetBaseHeight() * (_PlayApplyTimingProperty.isExpanded? 4f:1f) + 10f;
             float dddHeight      = GetBaseHeight() * (_PositionProperty.isExpanded? 8f:1f) + 10f;
             float total          = (eventRefHeight + paramRefHeight + timingHeight + dddHeight + playHeight + 10f);
@@ -141,6 +155,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
             _IsOneShotProperty = parentProperty.FindPropertyRelative("IsOneShot");
             _VolumeProperty = parentProperty.FindPropertyRelative("Volume");
             _StartTimelinePositionProperty = parentProperty.FindPropertyRelative("StartTimelinePositionRatio");
+            _EventPlayType = parentProperty.FindPropertyRelative("EventPlayType");
 
             _PositionProperty = parentProperty.FindPropertyRelative("EventPos");
             _EventMaxDistanceProperty = parentProperty.FindPropertyRelative("EventMaxDistance");
@@ -150,7 +165,7 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
             return (_EventRefProperty!=null && _ParamRefProperty!=null) &&
                    (_PlayApplyTimingProperty!=null && _StopApplyTimingProperty!=null) &&
-                   (_IsOneShotProperty!=null && _VolumeProperty!=null && _StartTimelinePositionProperty!=null) &&
+                   (_IsOneShotProperty!=null && _VolumeProperty!=null && _StartTimelinePositionProperty!=null && _EventPlayType!=null) &&
                    (_PositionProperty!=null && _EventMinDistanceProperty!=null && _EventMaxDistanceProperty!=null && _OverrideDistanceProperty!=null);
             #endregion
         }
@@ -166,20 +181,30 @@ public sealed class FModInspectorHelper : MonoBehaviour
             position.width -= 25f;
 
 
-            /**Event Ref...**/
+            /******************************************************
+             *    EventReference에 대한 프로퍼티 필드를 표시하고, 
+             *    관련 정보를 불러온다....
+             * *****/
             EditorGUI.PropertyField(position, _EventRefProperty);
             position.y += EditorGUI.GetPropertyHeight(_EventRefProperty);
             GUI_DrawLine(ref position);
 
+            EventReference eventRef  = _EventRefProperty.GetEventReference();
+            EditorEventRef eEventRef = EventManager.EventFromGUID(eventRef.Guid);
 
-            /**Param Ref...**/
+
+            /********************************************************
+             *    ParamReference에 대한 프로퍼티를 필드를 표시한다...
+             * *******/
             EditorGUI.PropertyField(position, _ParamRefProperty);
             position.y += EditorGUI.GetPropertyHeight(_ParamRefProperty);
             GUI_DrawLine(ref position);
 
 
-            /**Timing...**/
-            if(_IsOneShotProperty.isExpanded =  EditorGUI.Foldout(position, _IsOneShotProperty.isExpanded, "Play Settings"))
+            /*************************************************
+             *    Play에 관련된 설정창을 표시한다....
+             * *****/
+            if (_IsOneShotProperty.isExpanded =  EditorGUI.Foldout(position, _IsOneShotProperty.isExpanded, "Play Settings"))
             {
                 position.x     += 25f;
                 position.y     += 25f;
@@ -193,6 +218,10 @@ public sealed class FModInspectorHelper : MonoBehaviour
                 _StartTimelinePositionProperty.floatValue = EditorGUI.Slider(position, "TimelinePosition Ratio", _StartTimelinePositionProperty.floatValue, 0f, 1f);
                 position.y += 25f;
 
+                //Play Type...
+                _EventPlayType.intValue = EditorGUI.Popup(position, "Play Method", _EventPlayType.intValue, _methodTable);
+                position.y += 25f;
+
                 //Play Timing...
                 _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
                 position.x     -= 25f;
@@ -203,56 +232,66 @@ public sealed class FModInspectorHelper : MonoBehaviour
             GUI_DrawLine(ref position);
 
 
-            /**Timing...**/
-            if (_PlayApplyTimingProperty.isExpanded = EditorGUI.Foldout(position, _PlayApplyTimingProperty.isExpanded, "Stop Settings"))
+            /********************************************
+             *    Stop에 관련된 설정창을 표시한다...
+             * *****/
+            using (var disableScope = new EditorGUI.DisabledGroupScope(_EventPlayType.intValue==(int)FModEventPlayMethodType.PlayOneShotSFX))
             {
-                position.x += 25f;
-                position.y += 25f;
-                position.width -= 25f;
+                if (_PlayApplyTimingProperty.isExpanded = EditorGUI.Foldout(position, _PlayApplyTimingProperty.isExpanded, "Stop Settings"))
+                {
+                    position.x += 25f;
+                    position.y += 25f;
+                    position.width -= 25f;
 
-                //IsOneShot...
-                _IsOneShotProperty.boolValue = EditorGUI.Toggle(position, "DestroyAtStop", _IsOneShotProperty.boolValue);
-                position.y += 25f;
+                    //IsOneShot...
+                    _IsOneShotProperty.boolValue = EditorGUI.Toggle(position, "DestroyAtStop", _IsOneShotProperty.boolValue);
+                    position.y += 25f;
 
-                //Stop Timing...
-                _StopApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Stop Timing", (FModEventApplyTiming)_StopApplyTimingProperty.intValue);
-                position.x -= 25f;
-                position.width += 25f;
+                    //Stop Timing...
+                    _StopApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Stop Timing", (FModEventApplyTiming)_StopApplyTimingProperty.intValue);
+                    position.x -= 25f;
+                    position.width += 25f;
+                }
             }
 
             position.y += 25f;
             GUI_DrawLine(ref position);
 
 
-            /**3D....**/
-            if (_PositionProperty.isExpanded = EditorGUI.Foldout(position, _PositionProperty.isExpanded, "3D"))
+            /*************************************************
+             *   3D Event일 경우, 3D 관련 설정창을 표시한다...
+             * *****/
+            using (var disableScope = new EditorGUI.DisabledGroupScope(!(eEventRef!=null && eEventRef.Is3D)))
             {
-                position.x     += 25f;
-                position.y     += 25f;
-                position.width -= 25f;
-
-                //Position...
-                _PositionProperty.vector3Value = EditorGUI.Vector3Field(position, "position", _PositionProperty.vector3Value);
-                position.y += 25f;
-
-                //Override Distance
-                _OverrideDistanceProperty.boolValue = EditorGUI.Toggle(position,"Override Distance",  _OverrideDistanceProperty.boolValue);
-                position.y     += 25f;
-
-                //Min/Max Distance
-                using (var scope = new EditorGUI.DisabledGroupScope(!_OverrideDistanceProperty.boolValue))
-                {
-                    position.x     += 25f;
+                /**3D....**/
+                if (_PositionProperty.isExpanded = EditorGUI.Foldout(position, _PositionProperty.isExpanded, "3D")){
+                    position.x += 25f;
+                    position.y += 25f;
                     position.width -= 25f;
 
-                    _EventMinDistanceProperty.floatValue = EditorGUI.FloatField(position, "Min", _EventMinDistanceProperty.floatValue);
+                    //Position...
+                    _PositionProperty.vector3Value = EditorGUI.Vector3Field(position, "position", _PositionProperty.vector3Value);
                     position.y += 25f;
 
-                    _EventMaxDistanceProperty.floatValue = EditorGUI.FloatField(position, "Max", _EventMaxDistanceProperty.floatValue);
-                }
+                    //Override Distance
+                    _OverrideDistanceProperty.boolValue = EditorGUI.Toggle(position, "Override Distance", _OverrideDistanceProperty.boolValue);
+                    position.y += 25f;
 
-                position.width += 50f;
-                position.x     -= 50f;
+                    //Min/Max Distance
+                    using (var scope = new EditorGUI.DisabledGroupScope(!_OverrideDistanceProperty.boolValue))
+                    {
+                        position.x += 25f;
+                        position.width -= 25f;
+
+                        _EventMinDistanceProperty.floatValue = EditorGUI.FloatField(position, "Min", _EventMinDistanceProperty.floatValue);
+                        position.y += 25f;
+
+                        _EventMaxDistanceProperty.floatValue = EditorGUI.FloatField(position, "Max", _EventMaxDistanceProperty.floatValue);
+                    }
+
+                    position.width += 50f;
+                    position.x -= 50f;
+                }
             }
             #endregion
         }
@@ -318,11 +357,34 @@ public sealed class FModInspectorHelper : MonoBehaviour
                 SerializedProperty min         = lastElement.FindPropertyRelative("EventMinDistance");
                 SerializedProperty max         = lastElement.FindPropertyRelative("EventMaxDistance");
                 SerializedProperty eventRef    = lastElement.FindPropertyRelative("EventRef");
+                SerializedProperty playTiming  = lastElement.FindPropertyRelative("PlayApplyTiming");
+                SerializedProperty stopTiming  = lastElement.FindPropertyRelative("StopApplyTiming");
+                SerializedProperty IsOneShot   = lastElement.FindPropertyRelative("IsOneShot");
+                SerializedProperty Override    = lastElement.FindPropertyRelative("OverrideDistance");
+                SerializedProperty minDistance = lastElement.FindPropertyRelative("EventMinDistance");
+                SerializedProperty maxDistance = lastElement.FindPropertyRelative("EventMaxDistance");
+                SerializedProperty timeRatio   = lastElement.FindPropertyRelative("StartTimelinePositionRatio");
+                SerializedProperty paramRef    = lastElement.FindPropertyRelative("ParamRef");
+                SerializedProperty paramType   = paramRef.FindPropertyRelative("_paramType");
+                SerializedProperty paramValue  = paramRef.FindPropertyRelative("_paramValue");
+                SerializedProperty paramGlobal = paramRef.FindPropertyRelative("_isGlobal");
+                SerializedProperty methodType  = lastElement.FindPropertyRelative("EventPlayType");
 
-                volume.floatValue     = 1f;
-                min.floatValue        = 1f;
-                max.floatValue        = 20f;
-                position.vector3Value = ((FModInspectorHelper)target).transform.position;
+                volume.floatValue      = 1f;
+                min.floatValue         = 1f;
+                max.floatValue         = 20f;
+                playTiming.intValue    = 0;
+                stopTiming.intValue    = 0;
+                IsOneShot.boolValue    = false;
+                Override.boolValue     = false;
+                minDistance.floatValue = 1f;
+                maxDistance.floatValue = 20f;
+                timeRatio.floatValue   = 0f;
+                paramType.intValue     = -1;
+                paramValue.floatValue  =  0f;
+                paramGlobal.boolValue  = false;
+                position.vector3Value  = ((FModInspectorHelper)target).transform.position;
+                methodType.intValue    = 0;
                 eventRef.SetEventReference(new FMOD.GUID(), "");
 
                 _prevArraySize = _EventDescs.arraySize;
@@ -390,19 +452,46 @@ public sealed class FModInspectorHelper : MonoBehaviour
 
             ref InternalEventDesc desc = ref EventDescs[i];
 
-            bool ContainPlayTiming = ((int)desc.PlayApplyTiming & (int)timing) > 0;
+            bool ContainPlayTiming = ((int)desc.PlayApplyTiming & (int)timing)>0;
             bool ContainStopTiming = ((int)desc.StopApplyTiming & (int)timing)>0;
 
 
-            /**종료 타이밍과 일치하는가?**/
-            if(ContainStopTiming && desc.Instance.IsValid){
-                desc.Instance.Stop();
+            /**********************************************
+             *    종료 타이밍과 일치하는가?..
+             * ****/
+            if(ContainStopTiming){
+
+                /**PlayBGM() 메소드를 사용하는가?**/
+                if(desc.EventPlayType == FModEventPlayMethodType.PlayBGM)
+                {
+                    FModAudioManager.StopBGM();
+                }
+
+                /**Instance.Play() 메소드를 사용하는가?**/
+                if(desc.EventPlayType==FModEventPlayMethodType.Instance_Play && desc.Instance.IsValid)
+                {
+                    desc.Instance.Stop();
+                }
             }
 
-            /**시작 타이밍과 일치하는가?*/
-            if(ContainPlayTiming){
 
-                Play_Progress_Internal(ref desc);
+            /**********************************************
+             *    시작 타이밍과 일치하는가?..
+             * ****/
+            if (ContainPlayTiming){
+
+                /*PlayOneShotSFX() 메소드를 사용하는가?**/
+                if (desc.EventPlayType == FModEventPlayMethodType.PlayOneShotSFX)
+                {
+                    FModAudioManager.PlayOneShotSFX(desc.EventRef, desc.EventPos, desc.ParamRef, desc.Volume, desc.StartTimelinePositionRatio, desc.EventMinDistance, desc.EventMaxDistance);
+                }
+
+                /**PlayBGM() 메소드를 사용하는가?*/
+                else if (desc.EventPlayType == FModEventPlayMethodType.PlayBGM)
+                {
+                    FModAudioManager.PlayBGM(desc.EventRef, desc.ParamRef, desc.Volume, desc.StartTimelinePositionRatio, desc.EventPos);
+                }
+                else Play_Progress_Internal(ref desc);
             }
 
             //파괴되는 타이밍이라면 유효한 인스턴스를 파괴한다...
