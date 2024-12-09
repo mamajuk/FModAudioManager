@@ -219,11 +219,11 @@ public sealed class FModInspectorHelper : MonoBehaviour
                 position.y += 25f;
 
                 //Play Type...
-                _EventPlayType.intValue = EditorGUI.Popup(position, "Play Method", _EventPlayType.intValue, _methodTable);
+                _EventPlayType.intValue = EditorGUI.Popup(position, "Auto Play Method", _EventPlayType.intValue, _methodTable);
                 position.y += 25f;
 
                 //Play Timing...
-                _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
+                _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Auto Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
                 position.x     -= 25f;
                 position.width += 25f;
             }
@@ -244,11 +244,11 @@ public sealed class FModInspectorHelper : MonoBehaviour
                     position.width -= 25f;
 
                     //IsOneShot...
-                    _IsOneShotProperty.boolValue = EditorGUI.Toggle(position, "DestroyAtStop", _IsOneShotProperty.boolValue);
+                    _IsOneShotProperty.boolValue = EditorGUI.Toggle(position, "Auto DestroyAtStop", _IsOneShotProperty.boolValue);
                     position.y += 25f;
 
                     //Stop Timing...
-                    _StopApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Stop Timing", (FModEventApplyTiming)_StopApplyTimingProperty.intValue);
+                    _StopApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Auto Stop Timing", (FModEventApplyTiming)_StopApplyTimingProperty.intValue);
                     position.x -= 25f;
                     position.width += 25f;
                 }
