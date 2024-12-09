@@ -218,12 +218,12 @@ public sealed class FModInspectorHelper : MonoBehaviour
                 _StartTimelinePositionProperty.floatValue = EditorGUI.Slider(position, "TimelinePosition Ratio", _StartTimelinePositionProperty.floatValue, 0f, 1f);
                 position.y += 25f;
 
-                //Play Type...
-                _EventPlayType.intValue = EditorGUI.Popup(position, "Auto Play Method", _EventPlayType.intValue, _methodTable);
-                position.y += 25f;
-
                 //Play Timing...
                 _PlayApplyTimingProperty.intValue = (int)(FModEventApplyTiming)EditorGUI.EnumFlagsField(position, "Auto Play Timing", (FModEventApplyTiming)_PlayApplyTimingProperty.intValue);
+                position.y += 25f;
+
+                //Play Type...
+                _EventPlayType.intValue = EditorGUI.Popup(position, "Auto Play Method", _EventPlayType.intValue, _methodTable);
                 position.x     -= 25f;
                 position.width += 25f;
             }
