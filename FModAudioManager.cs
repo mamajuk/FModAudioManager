@@ -2455,7 +2455,7 @@ public sealed class FModAudioManager : MonoBehaviour
                         isGlobal         = (isGlobalNode!=null),
                         LableCount       = labelNodes.Count,
                         Min              = (minNode==null? 0f:float.Parse(minNode)),
-                        Max              = (maxNode==null? 1f:float.Parse(maxNode)),
+                        Max              = (maxNode==null? 1f:float.Parse(maxNode)-1f),
                     };
 
                     for (int i=0; i<newDesc.LableCount; i++){
